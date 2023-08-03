@@ -34,6 +34,7 @@ contract VaultBase is Governable {
     address public controller;
 
     bool public isInitialized;
+    bool public shouldValidatePoolShares;
 
     mapping(address => bool) public whitelistedToken;
     mapping(uint => string) public errors;
@@ -48,26 +49,30 @@ contract VaultBase is Governable {
         uint lastUpdateTime; 
     }
 
-    function setBaseMaxLeverage(uint _baseMaxLeverage) external onlyHandler(gov) {
+    function setBaseMaxLeverage(uint _baseMaxLeverage) external onlyHandler(dao) {
         validate(_baseMaxLeverage >= MIN_LEVERAGE, 2);
         baseMaxLeverage = _baseMaxLeverage;
     }
 
-    function setLiquidationFee(uint _liquidationFee) external onlyHandler(gov) {
+    function setLiquidationFee(uint _liquidationFee) external onlyHandler(dao) {
         validate(_liquidationFee >= MIN_LIQUIDATION_FEE, 3);
         validate(MAX_LIQUIDATION_FEE >= _liquidationFee, 4);
         liquidationFee = _liquidationFee;
     }
 
-    function setRemainingLiquidationFee(uint _remainingLiquidationFee) external onlyHandler(gov) {
+    function setRemainingLiquidationFee(uint _remainingLiquidationFee) external onlyHandler(dao) {
         validate(MAX_REMAINING_LIQUIDATION_FEE >= _remainingLiquidationFee, 8);
         remainingLiquidationFee = _remainingLiquidationFee;
     }
 
-    function setMinChangeTime(uint _minChangeTime) external onlyHandler(gov) {
+    function setMinChangeTime(uint _minChangeTime) external onlyHandler(dao) {
         validate(MAX_CHANGE_TIME >= _minChangeTime, 14);
         minChangeTime = _minChangeTime;
     } 
+
+    function setPoolSharesValidation(bool _shouldValidatePoolShares) external onlyHandler(dao) {
+        shouldValidatePoolShares = _shouldValidatePoolShares;
+    }
 
     function setError(uint _errorCode, string calldata _error) external onlyHandler(controller) {
         errors[_errorCode] = _error;
