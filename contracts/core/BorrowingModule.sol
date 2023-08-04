@@ -87,7 +87,7 @@ contract BorrowingModule is VaultBase {
 
     function borrowMargin(bytes32 _key, uint _margin) internal {
         validate(availableLiquidity() >= _margin, 25);
-        uint _userShares = (_margin * borrowPool) / totalBorrows;
+        uint _userShares = _margin * borrowPool / totalBorrows;
         positions[_key].borrowed += _userShares;
         borrowPool += _userShares;
         totalBorrows += _margin;  
