@@ -34,7 +34,7 @@ contract BorrowingModule is VaultBase {
 
     function updateTotalBorrows() public returns(uint) {
         if(block.timestamp - lastUpdateTotalBorrows > 0){
-            totalBorrows += calcualteTotalBorrowsIncrease();
+            totalBorrows = preUpdateTotalBorrows();
             lastUpdateTotalBorrows = block.timestamp;
         }
         return totalBorrows;
@@ -42,7 +42,7 @@ contract BorrowingModule is VaultBase {
 
     function preUpdateTotalBorrows() public view returns(uint) {
         if(block.timestamp - lastUpdateTotalBorrows > 0){
-            return totalBorrows + calcualteTotalBorrowsIncrease();
+            return totalBorrows + calcualtePoolIncrease(totalBorrows, calculateActualBorrowRate(), lastUpdateTotalBorrows);
         } else {
             return totalBorrows;
         }       
@@ -77,12 +77,6 @@ contract BorrowingModule is VaultBase {
 
     function utilizationRate() public view returns(uint) {
         return totalBorrows * PRECISION / poolAmount;
-    }
-
-    function calcualteTotalBorrowsIncrease() internal view returns(uint totalBorrowsIncrease) {
-        totalBorrowsIncrease = 
-        (totalBorrows * calculateActualBorrowRate() * ((block.timestamp - lastUpdateTotalBorrows) * 
-        ACCURACY / ONE_YEAR)) / DOUBLE_ACC;
     }
 
     function borrowMargin(bytes32 _key, uint _margin) internal {

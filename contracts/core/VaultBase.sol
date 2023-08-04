@@ -92,6 +92,10 @@ contract VaultBase is Governable {
         if(_lastUpdateTime != 0) validate(block.timestamp > _lastUpdateTime + minChangeTime, 15);
     }
 
+    function calcualtePoolIncrease(uint _totalPool, uint _rate, uint _lastUpdate) internal view returns(uint) {
+        return (_totalPool * _rate * ((block.timestamp - _lastUpdate) * ACCURACY / ONE_YEAR)) / DOUBLE_ACC;
+    }
+
     function validatePoolShares(
         uint _total, 
         uint _userDebt, 
