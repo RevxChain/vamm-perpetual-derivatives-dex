@@ -6,6 +6,9 @@ contract Governable {
     address public gov;
     address public dao;
 
+    event NewGov(address newGov, uint time);
+    event NewDao(address newDao, uint time);
+
     modifier validateAddress(address _address) {
         require(_address != address(0) && _address != address(this), "Governable: invalid address");
         _;
@@ -20,9 +23,6 @@ contract Governable {
         require(msg.sender == gov || msg.sender == dao, "Governable: invalid handler");
         _;
     }
-
-    event NewGov(address newGov, uint time);
-    event NewDao(address newDao, uint time);
 
     constructor() {
         gov = msg.sender; 

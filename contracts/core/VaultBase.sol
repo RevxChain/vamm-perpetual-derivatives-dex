@@ -88,11 +88,11 @@ contract VaultBase is Governable {
         validate(baseMaxLeverage >= _usedLeverage, 24);
     }
 
-    function validatelastUpdateTime(uint _lastUpdateTime) internal view {
+    function validateLastUpdateTime(uint _lastUpdateTime) internal view {
         if(_lastUpdateTime != 0) validate(block.timestamp > _lastUpdateTime + minChangeTime, 15);
     }
 
-    function calcualtePoolIncrease(uint _totalPool, uint _rate, uint _lastUpdate) internal view returns(uint) {
+    function calculatePoolIncrease(uint _totalPool, uint _rate, uint _lastUpdate) internal view returns(uint) {
         return (_totalPool * _rate * ((block.timestamp - _lastUpdate) * ACCURACY / ONE_YEAR)) / DOUBLE_ACC;
     }
 
