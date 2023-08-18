@@ -65,12 +65,12 @@ contract VaultBase is Governable {
         remainingLiquidationFee = _remainingLiquidationFee;
     }
 
-    function setMinChangeTime(uint _minChangeTime) external onlyHandler(dao) {
+    function setMinChangeTime(uint _minChangeTime) external onlyHandlers() {
         validate(MAX_CHANGE_TIME >= _minChangeTime, 14);
         minChangeTime = _minChangeTime;
     } 
 
-    function setPoolSharesValidation(bool _shouldValidatePoolShares) external onlyHandler(dao) {
+    function setPoolSharesValidation(bool _shouldValidatePoolShares) external onlyHandlers() {
         shouldValidatePoolShares = _shouldValidatePoolShares;
     }
 

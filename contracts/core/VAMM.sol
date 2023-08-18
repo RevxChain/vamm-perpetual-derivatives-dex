@@ -7,9 +7,9 @@ import "../libraries/Governable.sol";
 
 contract VAMM is Governable {
 
-    uint public constant ACCURACY = 1e18;
     uint public constant PRECISION = 10000;
-
+    uint public constant ACCURACY = 1e18;
+    
     uint public constant MIN_LIQUIDITY = 2e27;
     uint public constant MAX_ALLOWED_PRICE_DEVIATION = 100; 
     uint public constant MIN_LIQUIDITY_UPDATE_DELAY = 12 hours;
@@ -225,5 +225,4 @@ contract VAMM is Governable {
     function validateLiquidity(uint _indexAmount, uint _stableAmount) internal pure {
         require(_indexAmount * _stableAmount >= MIN_LIQUIDITY, "VAMM: invalid liquidity amount"); 
     }
-
 }

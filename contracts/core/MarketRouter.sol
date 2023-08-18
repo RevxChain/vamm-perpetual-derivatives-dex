@@ -189,5 +189,4 @@ contract MarketRouter is Governable, ReentrancyGuard {
     function validateDelta(uint _sizeDelta, uint _collateralDelta) internal pure {
         require(_sizeDelta > 0 || _collateralDelta > 0, "MarketRouter: invalid delta");
     }
-
 }
