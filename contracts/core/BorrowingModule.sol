@@ -55,8 +55,7 @@ contract BorrowingModule is VaultBase {
     function preCalculateUserBorrowDebt(bytes32 _key) public view returns(uint) {
         Position memory position = positions[_key];
         uint _margin = position.size - position.collateral;
-        return (position.borrowed * preUpdateTotalBorrows() / borrowPool) > _margin ?
-        (position.borrowed * preUpdateTotalBorrows() / borrowPool) - _margin : 0;
+        return preCalculateUserDebt(_key) > _margin ? preCalculateUserDebt(_key) - _margin : 0;
     }
 
     function availableLiquidity() public view returns(uint) {
@@ -87,8 +86,8 @@ contract BorrowingModule is VaultBase {
         totalBorrows += _margin;  
     }
 
-    function collectBorrowFee(bytes32 _key, uint _margin) internal returns(uint userBorrowDebt) {
-        userBorrowDebt = preCalculateUserDebt(_key) > _margin ? preCalculateUserDebt(_key) - _margin : 0;
+    function collectBorrowFee(bytes32 _key) internal returns(uint userBorrowDebt) {
+        userBorrowDebt = preCalculateUserBorrowDebt(_key);
         if(userBorrowDebt > 0){
             uint _sharePoolDecrease = userBorrowDebt * borrowPool / totalBorrows;
             positions[_key].borrowed -= _sharePoolDecrease; 

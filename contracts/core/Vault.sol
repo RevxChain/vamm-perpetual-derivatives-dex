@@ -120,7 +120,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         uint _margin;
         if(position.borrowed > INIT_LOCK_AMOUNT){
             _margin = position.size - position.collateral; 
-            _margin = collectBorrowFee(_key, _margin); 
+            _margin = collectBorrowFee(_key); 
             position.collateral -= _margin; 
             if(_sizeDelta > 0){
                 uint _operatingFee = collectOperatingFee(_indexToken, _sizeDelta, _long, true); 
@@ -173,7 +173,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         validateLastUpdateTime(position.lastUpdateTime);
 
         uint _margin = position.size - position.collateral; 
-        _margin = collectBorrowFee(_key, _margin); 
+        _margin = collectBorrowFee(_key); 
 
         (uint _delta, bool _hasProfit) = collectFundingFee(_user, _indexToken, _long); 
 
@@ -212,7 +212,7 @@ contract Vault is FundingModule, ReentrancyGuard {
 
         uint _margin = position.size - position.collateral; 
         position.collateral -= 
-        collectOperatingFee(_indexToken, _sizeDelta, _long, false) + collectBorrowFee(_key, _margin); 
+        collectOperatingFee(_indexToken, _sizeDelta, _long, false) + collectBorrowFee(_key); 
 
         (uint _delta, bool _hasProfit) = collectFundingFee(_user, _indexToken, _long); 
         _hasProfit ? position.collateral += _delta : position.collateral -= _delta;
@@ -256,7 +256,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         validateLastUpdateTime(position.lastUpdateTime);
 
         uint _margin = position.size - position.collateral; 
-        uint _borrowFee = collectBorrowFee(_key, _margin); 
+        uint _borrowFee = collectBorrowFee(_key); 
 
         (uint _delta, bool _hasProfit) = collectFundingFee(_user, _indexToken, _long); 
         _hasProfit ? position.collateral += _delta : position.collateral -= _delta;
@@ -292,14 +292,14 @@ contract Vault is FundingModule, ReentrancyGuard {
 
         uint _collateralDelta = position.collateral;
         uint _margin = position.size - _collateralDelta; 
-        uint _borrowFee = preCalculateUserDebt(_key) - _margin; 
+        uint _borrowFee = preCalculateUserBorrowDebt(_key); 
 
         if(_borrowFee >= _collateralDelta){
             _margin += _borrowFee - _collateralDelta; 
-            collectBorrowFee(_key, _margin);
+            collectBorrowFee(_key);
             _collateralDelta = 0;
         } else {
-            _collateralDelta -= collectBorrowFee(_key, _margin);
+            _collateralDelta -= collectBorrowFee(_key);
         }
 
         borrowMarginRedeem(_key, _margin);
@@ -335,10 +335,10 @@ contract Vault is FundingModule, ReentrancyGuard {
 
         if(_fee >= _collateral){
             _margin += _fee - _collateral; 
-            collectBorrowFee(_key, _margin);
+            collectBorrowFee(_key);
             _collateral = 0;
         } else {
-            _collateral -= collectBorrowFee(_key, _margin); 
+            _collateral -= collectBorrowFee(_key); 
             _fee = calculateOperationFeeAmount(_indexToken, _sizeDelta, _long, false); 
             if(_fee >= _collateral){
                 poolAmount += _collateral;
@@ -346,7 +346,7 @@ contract Vault is FundingModule, ReentrancyGuard {
             } else {
                 _collateral -= collectOperatingFee(_indexToken, _sizeDelta, _long, false); 
                 bool _hasProfit;
-                (_fee, _hasProfit,,) = preCalculateUserFundingFee(_user, _indexToken, _long);
+                (_fee, _hasProfit, , ) = preCalculateUserFundingFee(_user, _indexToken, _long);
                 
                 if(!_hasProfit && _fee > _collateral){
                     poolAmount += _collateral;
