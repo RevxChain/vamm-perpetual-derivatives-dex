@@ -87,7 +87,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         address _user, 
         uint _stableAmount, 
         uint _underlyingAmount
-    ) external nonReentrant() onlyHandler(LPManager) {
+    ) external onlyHandler(LPManager) {
         poolAmount -= _stableAmount;
 
         IERC20(stable).safeTransfer(_user, _underlyingAmount);
