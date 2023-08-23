@@ -3,7 +3,6 @@ pragma solidity 0.8.19;
 
 interface IPriceFeed {
 
-    //test function
     function getPrice(address _indexToken) external view returns(uint);
 
     // test function
@@ -16,9 +15,9 @@ interface IPriceFeed {
         uint _spreadBasisPoints
     ) external;
 
-    function setIsFastPriceEnabled(bool _isEnabled) external;
+    function deleteTokenConfig(address _indexToken) external;
 
-    function setFastPriceFeed(address _fastPriceFeed) external;
+    function setIsFastPriceEnabled(bool _isEnabled) external;
 
     function setFavorPrimaryPrice(bool _favorPrimaryPrice) external;
 
