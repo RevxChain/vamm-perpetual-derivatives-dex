@@ -57,10 +57,9 @@ contract Controller is Governable, ReentrancyGuard {
         uint _maxTotalLongSizes,
         uint _maxTotalShortSizes,
         address _priceFeed,
-        uint _priceDecimals,
-        uint _spreadBasisPoints
+        uint _priceDecimals
     ) external onlyHandler(dao) nonReentrant() { 
-        IPriceFeed(priceFeed).setTokenConfig(_indexToken, _priceFeed, _priceDecimals, _spreadBasisPoints);
+        IPriceFeed(priceFeed).setTokenConfig(_indexToken, _priceFeed, _priceDecimals);
 
         uint _referencePrice = IPriceFeed(priceFeed).getPrice(_indexToken);
         require(_referencePrice > 0, "Controller: invalid price");
@@ -70,6 +69,17 @@ contract Controller is Governable, ReentrancyGuard {
         IPositionsTracker(positionsTracker).setTokenConfig(_indexToken, _maxTotalLongSizes, _maxTotalShortSizes);
         IMarketRouter(marketRouter).setTokenConfig(_indexToken);
         IOrderBook(orderBook).setTokenConfig(_indexToken); 
+    }
+
+    function setPriceFeedAggregator(
+        address _indexToken, 
+        address _priceFeed, 
+        uint _priceDecimals
+    ) external onlyHandlers() nonReentrant() {
+        IPriceFeed(priceFeed).setPriceFeedAggregator(_indexToken, _priceFeed, _priceDecimals);
+
+        uint _referencePrice = IPriceFeed(priceFeed).getPrice(_indexToken);
+        require(_referencePrice > 0, "Controller: invalid price");
     }
 
     function deleteTokenConfig(address _indexToken) external onlyHandler(dao) nonReentrant() {  
