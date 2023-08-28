@@ -4,14 +4,15 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "../libraries/Governable.sol";
+import "../libraries/Math.sol";
 
 contract PositionsTracker is Governable, ReentrancyGuard {
+    using Math for uint;
 
     address public VAMM;
     address public LPManager;
     address public stable;
     address public vault;
-    address public controller;
 
     bool public isInitialized;
 
@@ -36,7 +37,7 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         address _vault,
         address _VAMM,
         address _controller
-    ) external onlyHandler(gov) {  
+    ) external onlyHandler(gov) validateAddress(_controller) {  
         require(isInitialized == false, "PositionsTracker: initialized");
         isInitialized = true;
 
@@ -114,17 +115,5 @@ contract PositionsTracker is Governable, ReentrancyGuard {
             config.totalShortSizes -= _sizeDelta;
             config.totalShortAssets > _assetsAmount ? config.totalShortAssets -= _assetsAmount : 0;
         }
-    }
-
-    function getConfigData(address _indexToken) external view returns(uint, uint, uint, uint, uint, uint) {
-        Config memory config = configs[_indexToken];
-        return (
-            config.totalLongSizes,
-            config.totalShortSizes,
-            config.totalLongAssets,
-            config.totalShortAssets,
-            config.maxTotalLongSizes,
-            config.maxTotalShortSizes
-        );
     }
 }

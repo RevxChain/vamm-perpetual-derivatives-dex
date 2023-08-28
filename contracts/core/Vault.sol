@@ -23,7 +23,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         address _positionsTracker,
         address _marketRouter,
         address _controller
-    ) external onlyHandler(gov) {   
+    ) external onlyHandler(gov) validateAddress(_controller) {   
         validate(isInitialized == false, 1);
         isInitialized = true;
 

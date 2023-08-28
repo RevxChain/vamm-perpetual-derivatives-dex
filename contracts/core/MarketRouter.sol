@@ -7,18 +7,17 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/IVAMM.sol";
 import "./interfaces/IVault.sol";
 import "../libraries/Governable.sol";
+import "../libraries/Math.sol";
 
 contract MarketRouter is Governable, ReentrancyGuard {
     using SafeERC20 for IERC20;
-
-    uint public constant REVERSE_PRECISION = 1e12;
+    using Math for uint;
     
     uint public constant MIN_POSITION_WORTH = 10e18;
 
     address public vault;
     address public VAMM;
     address public stable;
-    address public controller;
     address public utilityStorage;
 
     bool public liquidatePrivateMode;
@@ -45,7 +44,7 @@ contract MarketRouter is Governable, ReentrancyGuard {
         address _stable,
         address _controller,
         address _utilityStorage
-    ) external onlyHandler(gov) {  
+    ) external onlyHandler(gov) validateAddress(_controller) {  
         require(isInitialized == false, "MarketRouter: initialized");
         isInitialized = true;
 
@@ -86,7 +85,7 @@ contract MarketRouter is Governable, ReentrancyGuard {
         address _user = msg.sender;  
         IVault(vault).validateLiquidatable(_user, _indexToken, _long, false);
         validateDelta(_sizeDelta, _collateralDelta);
-        if(_collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, vault, precisionToStable(_collateralDelta));
+        if(_collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, vault, _collateralDelta.precisionToStable());
 
         IVAMM(VAMM).updateIndex(
             _user,
@@ -109,7 +108,7 @@ contract MarketRouter is Governable, ReentrancyGuard {
         IVault(vault).validateLiquidatable(_user, _indexToken, _long, false);  
         validateDelta(_collateralDelta, _collateralDelta);  
 
-        IERC20(stable).safeTransferFrom(_user, vault, precisionToStable(_collateralDelta));
+        IERC20(stable).safeTransferFrom(_user, vault, _collateralDelta.precisionToStable());
 
         IVault(vault).addCollateral(_user, _indexToken, _collateralDelta, _long);
     }
@@ -176,14 +175,6 @@ contract MarketRouter is Governable, ReentrancyGuard {
             true,
             _feeReceiver
         );
-    }
-
-    function stableToPrecision(uint _amount) internal pure returns(uint) {
-        return _amount * REVERSE_PRECISION;
-    }
-
-    function precisionToStable(uint _amount) internal pure returns(uint) {
-        return _amount / REVERSE_PRECISION;
     }
 
     function validateDelta(uint _sizeDelta, uint _collateralDelta) internal pure {

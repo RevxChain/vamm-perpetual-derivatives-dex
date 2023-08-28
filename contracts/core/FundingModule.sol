@@ -25,7 +25,7 @@ contract FundingModule is BorrowingModule {
 
     function setFundingPriceMultiplier(uint _fundingPriceMultiplier) external onlyHandler(dao) {
         validate(MAX_FUNDING_PRICE_MULTIPLIER >= _fundingPriceMultiplier , 31);
-        validate(_fundingPriceMultiplier >= INIT_LOCK_AMOUNT, 32);
+        validate(_fundingPriceMultiplier >= Math.INIT_LOCK_AMOUNT, 32);
         fundingPriceMultiplier = _fundingPriceMultiplier;
     }
 
@@ -46,7 +46,7 @@ contract FundingModule is BorrowingModule {
             uint _vammPrice = IVAMM(VAMM).getPrice(_indexToken);
             uint _feedPrice = IPriceFeed(priceFeed).getPrice(_indexToken);
             uint _priceDelta = _vammPrice > _feedPrice ? _vammPrice - _feedPrice : _feedPrice - _vammPrice;
-            uint _fundingFeeRate = (_priceDelta * ACCURACY / _vammPrice) * fundingPriceMultiplier / PRECISION; 
+            uint _fundingFeeRate = (_priceDelta * Math.ACCURACY / _vammPrice) * fundingPriceMultiplier / Math.PRECISION; 
             uint _totalFundingIncrease;
 
             if(_vammPrice > _feedPrice){
@@ -100,12 +100,12 @@ contract FundingModule is BorrowingModule {
 
     function setFundingTokenConfig(address _indexToken) internal {     
         Funding storage funding = fundings[_indexToken];
-        funding.totalLongFunding = INIT_LOCK_AMOUNT; 
-        funding.totalShortFunding = INIT_LOCK_AMOUNT;  
-        funding.fundingLongSharePool = INIT_LOCK_AMOUNT;
-        funding.fundingShortSharePool = INIT_LOCK_AMOUNT;
-        funding.fundingLongFeeAmount = INIT_LOCK_AMOUNT;
-        funding.fundingShortFeeAmount = INIT_LOCK_AMOUNT;
+        funding.totalLongFunding = Math.INIT_LOCK_AMOUNT; 
+        funding.totalShortFunding = Math.INIT_LOCK_AMOUNT;  
+        funding.fundingLongSharePool = Math.INIT_LOCK_AMOUNT;
+        funding.fundingShortSharePool = Math.INIT_LOCK_AMOUNT;
+        funding.fundingLongFeeAmount = Math.INIT_LOCK_AMOUNT;
+        funding.fundingShortFeeAmount = Math.INIT_LOCK_AMOUNT;
         funding.lastFundingUpdateTime = block.timestamp;
     }
 
@@ -175,9 +175,9 @@ contract FundingModule is BorrowingModule {
                 _sharePoolDecrease >= position.entryFunding ? 
                 position.entryFunding = 0 : position.entryFunding -= _sharePoolDecrease; 
                 _sharePoolDecrease >= funding.fundingLongSharePool ? 
-                funding.fundingLongSharePool = INIT_LOCK_AMOUNT : funding.fundingLongSharePool -= _sharePoolDecrease;
+                funding.fundingLongSharePool = Math.INIT_LOCK_AMOUNT : funding.fundingLongSharePool -= _sharePoolDecrease;
                 _userFundingFeeDebt >= funding.totalLongFunding ? 
-                funding.totalLongFunding = INIT_LOCK_AMOUNT : funding.totalLongFunding -= _userFundingFeeDebt;
+                funding.totalLongFunding = Math.INIT_LOCK_AMOUNT : funding.totalLongFunding -= _userFundingFeeDebt;
             } else {
                 _sharePoolDecrease = _userFundingFeeDebt * funding.fundingShortSharePool / funding.totalShortFunding;
                 if(shouldValidatePoolShares) validatePoolShares(
@@ -190,9 +190,9 @@ contract FundingModule is BorrowingModule {
                 _sharePoolDecrease >= position.entryFunding ? 
                 position.entryFunding = 0 : position.entryFunding -= _sharePoolDecrease; 
                 _sharePoolDecrease >= funding.fundingShortSharePool ? 
-                funding.fundingShortSharePool = INIT_LOCK_AMOUNT : funding.fundingShortSharePool -= _sharePoolDecrease;
+                funding.fundingShortSharePool = Math.INIT_LOCK_AMOUNT : funding.fundingShortSharePool -= _sharePoolDecrease;
                 _userFundingFeeDebt >= funding.totalShortFunding ? 
-                funding.totalShortFunding = INIT_LOCK_AMOUNT : funding.totalShortFunding -= _userFundingFeeDebt;
+                funding.totalShortFunding = Math.INIT_LOCK_AMOUNT : funding.totalShortFunding -= _userFundingFeeDebt;
             }
         } 
     }

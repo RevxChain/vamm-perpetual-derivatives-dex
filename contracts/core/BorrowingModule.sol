@@ -28,7 +28,7 @@ contract BorrowingModule is VaultBase {
     }
 
     function setUtilizationRateKink(uint _utilizationRateKink) external onlyHandler(dao) {
-        validate(PRECISION >= _utilizationRateKink, 13);
+        validate(Math.PRECISION >= _utilizationRateKink, 13);
         utilizationRateKink = _utilizationRateKink;
     } 
 
@@ -64,18 +64,18 @@ contract BorrowingModule is VaultBase {
 
     function calculateActualBorrowRate() public view returns(uint) {
         if(utilizationRateKink > utilizationRate()){
-            if(utilizationRate() >= DENOMINATOR){
+            if(utilizationRate() >= Math.DENOMINATOR){
                 return extraBorrowRatePerYear;
             } else {
                 return baseBorrowRatePerYear;
             } 
         } else {
-            return extraBorrowRatePerYear * utilizationRate() / DENOMINATOR;
+            return extraBorrowRatePerYear * utilizationRate() / Math.DENOMINATOR;
         }
     }
 
     function utilizationRate() public view returns(uint) {
-        return totalBorrows * PRECISION / poolAmount;
+        return totalBorrows * Math.PRECISION / poolAmount;
     }
 
     function borrowMargin(bytes32 _key, uint _margin) internal {
@@ -104,8 +104,8 @@ contract BorrowingModule is VaultBase {
         _sharePoolDecrease >= positions[_key].borrowed ? 
         positions[_key].borrowed = 0 : positions[_key].borrowed -= _sharePoolDecrease;
         _sharePoolDecrease >= borrowPool ? 
-        borrowPool = INIT_LOCK_AMOUNT : borrowPool -= _sharePoolDecrease;
+        borrowPool = Math.INIT_LOCK_AMOUNT : borrowPool -= _sharePoolDecrease;
         _margin >= totalBorrows ? 
-        totalBorrows = INIT_LOCK_AMOUNT : totalBorrows -= _margin;
+        totalBorrows = Math.INIT_LOCK_AMOUNT : totalBorrows -= _margin;
     }
 }

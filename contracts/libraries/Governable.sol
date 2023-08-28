@@ -5,6 +5,7 @@ contract Governable {
 
     address public gov;
     address public dao;
+    address public controller;
 
     event NewGov(address newGov, uint time);
     event NewDao(address newDao, uint time);

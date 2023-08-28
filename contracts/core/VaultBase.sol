@@ -2,16 +2,10 @@
 pragma solidity 0.8.19;
 
 import "../libraries/Governable.sol";
+import "../libraries/Math.sol";
 
 contract VaultBase is Governable {
-
-    uint public constant INIT_LOCK_AMOUNT = 1;
-    uint public constant DENOMINATOR = 1000;
-    uint public constant PRECISION = 10000;
-    uint public constant REVERSE_PRECISION = 1e12;
-    uint public constant ACCURACY = 1e18;
-    uint public constant DOUBLE_ACC = 1e36;
-    uint public constant ONE_YEAR = 52 weeks; 
+    using Math for uint; 
 
     uint public constant MIN_LEVERAGE = 11000; 
     uint public constant MIN_LIQUIDATION_FEE = 5e18; 
@@ -31,7 +25,6 @@ contract VaultBase is Governable {
     address public priceFeed;
     address public positionsTracker;
     address public marketRouter;
-    address public controller;
 
     bool public isInitialized;
     bool public shouldValidatePoolShares;
@@ -83,7 +76,7 @@ contract VaultBase is Governable {
     }
 
     function validateLeverage(uint _size, uint _collateral) internal view {
-        uint _usedLeverage = _size * PRECISION  / _collateral; 
+        uint _usedLeverage = _size * Math.PRECISION  / _collateral; 
         validate(_usedLeverage >= MIN_LEVERAGE, 23);
         validate(baseMaxLeverage >= _usedLeverage, 24);
     }
@@ -93,7 +86,7 @@ contract VaultBase is Governable {
     }
 
     function calculatePoolIncrease(uint _totalPool, uint _rate, uint _lastUpdate) internal view returns(uint) {
-        return (_totalPool * _rate * ((block.timestamp - _lastUpdate) * ACCURACY / ONE_YEAR)) / DOUBLE_ACC;
+        return (_totalPool * _rate * ((block.timestamp - _lastUpdate) * Math.ACCURACY / Math.ONE_YEAR)) / Math.DOUBLE_ACC;
     }
 
     function validatePoolShares(
@@ -127,13 +120,5 @@ contract VaultBase is Governable {
         }
 
         return (_fees, _delta);
-    }
-
-    function precisionToStable(uint _amount) internal pure returns(uint) {
-        return _amount / REVERSE_PRECISION;
-    }
-
-    function stableToPrecision(uint _amount) internal pure returns(uint) {
-        return _amount * REVERSE_PRECISION;
-    }   
+    }  
 }

@@ -5,7 +5,7 @@ library Math {
     uint internal constant INIT_LOCK_AMOUNT = 1;
     uint internal constant DENOMINATOR = 1000;
     uint internal constant PRECISION = 10000;
-    uint internal constant ONE_YEAR_DURATION = 52 weeks;
+    uint internal constant ONE_YEAR = 52 weeks;
     uint internal constant REVERSE_PRECISION = 1e12;
     uint internal constant ACCURACY = 1e18;
     uint internal constant DOUBLE_ACC = 1e36;

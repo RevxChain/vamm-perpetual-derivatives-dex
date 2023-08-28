@@ -8,11 +8,11 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "../libraries/Governable.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IVAMM.sol";
+import "../libraries/Math.sol";
 
 contract OrderBook is Governable, ReentrancyGuard {
     using SafeERC20 for IERC20;
-
-    uint public constant REVERSE_PRECISION = 1e12;
+    using Math for uint;
 
     uint public constant MIN_EXECUTION_FEE = 15e14;
     uint public constant MIN_ORDER_WORTH = 10e18;
@@ -23,7 +23,6 @@ contract OrderBook is Governable, ReentrancyGuard {
     address public vault;
     address public VAMM;
     address public stable;
-    address public controller;
 
     bool public isInitialized;
     bool public executePrivateMode; 
@@ -75,7 +74,7 @@ contract OrderBook is Governable, ReentrancyGuard {
         address _controller,
         uint _minExecutionFee,
         uint _minOrderWorth
-    ) external onlyHandler(gov) {  
+    ) external onlyHandler(gov) validateAddress(_controller) {  
         require(isInitialized == false, "OrderBook: initialized");
         isInitialized = true;
 
@@ -143,7 +142,7 @@ contract OrderBook is Governable, ReentrancyGuard {
         (, uint _positionSize, , , ,) = IVault(vault).getPosition(_user, _indexToken, _long);
 
         if(_positionSize == 0) require(_collateralDelta >= minOrderWorth, "OrderBook: insufficient collateral");
-        if(_collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, address(this), precisionToStable(_collateralDelta));
+        if(_collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, address(this), _collateralDelta.precisionToStable());
 
         _createIncreaseOrder(
             _user,
@@ -236,7 +235,7 @@ contract OrderBook is Governable, ReentrancyGuard {
 
         delete increaseOrders[order.user][_orderIndex];
 
-        if(order.collateralDelta > 0) IERC20(stable).safeTransfer(vault, precisionToStable(order.collateralDelta));
+        if(order.collateralDelta > 0) IERC20(stable).safeTransfer(vault, order.collateralDelta.precisionToStable());
         safeTransfer(_feeReceiver, order.executionFee);
 
         IVAMM(VAMM).updateIndex(
@@ -258,7 +257,7 @@ contract OrderBook is Governable, ReentrancyGuard {
 
         delete increaseOrders[_user][_orderIndex];
 
-        IERC20(stable).safeTransfer(_user, precisionToStable(order.collateralDelta));
+        IERC20(stable).safeTransfer(_user, order.collateralDelta.precisionToStable());
         safeTransfer(_user, order.executionFee);
     }
 
@@ -418,12 +417,4 @@ contract OrderBook is Governable, ReentrancyGuard {
     function validateDelta(uint _sizeDelta, uint _collateralDelta) internal pure {
         require(_sizeDelta > 0 || _collateralDelta > 0, "OrderBook: invalid position amounts");
     } 
-
-    function stableToPrecision(uint _amount) internal pure returns(uint) {
-        return _amount * REVERSE_PRECISION;
-    }
-
-    function precisionToStable(uint _amount) internal pure returns(uint) {
-        return _amount / REVERSE_PRECISION;
-    }
 }

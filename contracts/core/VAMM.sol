@@ -4,12 +4,11 @@ pragma solidity 0.8.19;
 import "./interfaces/IVault.sol";
 import "./interfaces/IPositionsTracker.sol";
 import "../libraries/Governable.sol";
+import "../libraries/Math.sol";
 
 contract VAMM is Governable {
+    using Math for uint; 
 
-    uint public constant PRECISION = 10000;
-    uint public constant ACCURACY = 1e18;
-    
     uint public constant MIN_LIQUIDITY = 2e27;
     uint public constant MAX_ALLOWED_PRICE_DEVIATION = 100; 
     uint public constant MIN_LIQUIDITY_UPDATE_DELAY = 12 hours;
@@ -18,7 +17,6 @@ contract VAMM is Governable {
 
     address public vault;
     address public positionsTracker;
-    address public controller;
 
     bool public isInitialized;
 
@@ -49,7 +47,7 @@ contract VAMM is Governable {
         address _marketRouter,
         address _orderBook,
         address _controller
-    ) external onlyHandler(gov) {  
+    ) external onlyHandler(gov) validateAddress(_controller) {  
         require(isInitialized == false, "VAMM: initialized");
         isInitialized = true;
 
@@ -181,7 +179,7 @@ contract VAMM is Governable {
     }
 
     function getPrice(address _indexToken) public view returns(uint) {
-        return pairs[_indexToken].stableAmount * ACCURACY / pairs[_indexToken].indexAmount;
+        return pairs[_indexToken].stableAmount * Math.ACCURACY / pairs[_indexToken].indexAmount;
     }
 
     function preCalculatePrice(
@@ -203,7 +201,7 @@ contract VAMM is Governable {
             _outputIndexed = pair.indexAmount - newIndexAmount;
         }
 
-        markPrice = _sizeDelta * ACCURACY / _outputIndexed;
+        markPrice = _sizeDelta * Math.ACCURACY / _outputIndexed;
     }
 
     function validatePriceDeviation(
@@ -214,8 +212,8 @@ contract VAMM is Governable {
         bool _init
     ) internal view {
         _referencePrice = _init ? _referencePrice : getPrice(_indexToken);
-        uint _newMarkPrice = _stableAmount * ACCURACY / _indexAmount;
-        uint _maxPriceDelta = _referencePrice * allowedPriceDeviation / PRECISION;
+        uint _newMarkPrice = _stableAmount * Math.ACCURACY / _indexAmount;
+        uint _maxPriceDelta = _referencePrice * allowedPriceDeviation / Math.PRECISION;
 
         _newMarkPrice > _referencePrice ? 
         require(_referencePrice + _maxPriceDelta >= _newMarkPrice, "VAMM: max deviation overflow") : 
