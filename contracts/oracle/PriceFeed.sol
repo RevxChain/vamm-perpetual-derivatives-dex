@@ -15,7 +15,6 @@ contract PriceFeed is Governable, ReentrancyGuard {
     uint public priceSampleSpace;
 
     address public fastPriceFeed;
-    address public controller;
 
     bool public isFastPriceEnabled;
     bool public favorPrimaryPrice;
@@ -34,7 +33,10 @@ contract PriceFeed is Governable, ReentrancyGuard {
         _;
     }
 
-    function initialize(address _fastPriceFeed, address _controller) external onlyHandler(gov) {  
+    function initialize(
+        address _fastPriceFeed, 
+        address _controller
+    ) external onlyHandler(gov) validateAddress(_controller) {  
         require(isInitialized == false, "PriceFeed: initialized");
         isInitialized = true;
 
