@@ -32,7 +32,7 @@ contract VAMM is Governable {
     }
 
     modifier onlyRouter() {
-        require(routers[msg.sender] == true, "VAMM: invalid handler");
+        require(routers[msg.sender], "VAMM: invalid handler");
         _;
     }
 
@@ -48,7 +48,7 @@ contract VAMM is Governable {
         address _orderBook,
         address _controller
     ) external onlyHandler(gov) validateAddress(_controller) {  
-        require(isInitialized == false, "VAMM: initialized");
+        require(!isInitialized, "VAMM: initialized");
         isInitialized = true;
 
         vault = _vault;

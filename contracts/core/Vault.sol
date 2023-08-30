@@ -24,7 +24,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         address _marketRouter,
         address _controller
     ) external onlyHandler(gov) validateAddress(_controller) {   
-        validate(isInitialized == false, 1);
+        validate(!isInitialized, 1);
         isInitialized = true;
 
         stable = _stable;
@@ -37,8 +37,8 @@ contract Vault is FundingModule, ReentrancyGuard {
 
         shouldValidatePoolShares = true;
         lastUpdateTotalBorrows = block.timestamp;
-        totalBorrows = INIT_LOCK_AMOUNT;
-        borrowPool = INIT_LOCK_AMOUNT;
+        totalBorrows = Math.INIT_LOCK_AMOUNT;
+        borrowPool = Math.INIT_LOCK_AMOUNT;
         liquidationFee = MIN_LIQUIDATION_FEE; 
         baseOperatingFee = 10; 
         maxOperatingFeePriceDeviation = 500;
@@ -53,13 +53,13 @@ contract Vault is FundingModule, ReentrancyGuard {
     }
 
     function setTokenConfig(address _indexToken) external onlyHandler(controller) {   
-        validate(whitelistedToken[_indexToken] == false, 0);    
+        validate(!whitelistedToken[_indexToken], 0);    
         whitelistedToken[_indexToken] = true;
         setFundingTokenConfig(_indexToken);
     }
 
     function deleteTokenConfig(address _indexToken) external onlyHandler(controller) {   
-        validate(whitelistedToken[_indexToken] == true, 0);
+        validate(whitelistedToken[_indexToken], 0);
         whitelistedToken[_indexToken] = false;
         deleteFundingTokenConfig(_indexToken);
     }
@@ -70,12 +70,12 @@ contract Vault is FundingModule, ReentrancyGuard {
     }
 
     function setMaxOperatingFeePriceDeviation(uint _maxOperatingFeePriceDeviation) external onlyHandler(dao) {
-        validate(PRECISION >= _maxOperatingFeePriceDeviation, 6);
+        validate(Math.PRECISION >= _maxOperatingFeePriceDeviation, 6);
         maxOperatingFeePriceDeviation = _maxOperatingFeePriceDeviation;
     }
 
     function setOperatingFeePriceMultiplier(uint _operatingFeePriceMultiplier) external onlyHandler(dao) {
-        validate(PRECISION >= _operatingFeePriceMultiplier, 7);
+        validate(Math.PRECISION >= _operatingFeePriceMultiplier, 7);
         operatingFeePriceMultiplier = _operatingFeePriceMultiplier;
     }
 
@@ -95,7 +95,7 @@ contract Vault is FundingModule, ReentrancyGuard {
 
     function directIncreasePool(uint _underlyingAmount) external nonReentrant() {
         uint _balance = IERC20(stable).balanceOf(address(this));
-        poolAmount += stableToPrecision(_underlyingAmount);
+        poolAmount += _underlyingAmount.stableToPrecision();
         IERC20(stable).safeTransferFrom(msg.sender, address(this), _underlyingAmount); 
         validate(IERC20(stable).balanceOf(address(this)) == _balance + _underlyingAmount, 21);
     }
@@ -108,7 +108,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         bool _long, 
         uint _markPrice 
     ) external onlyHandler(VAMM) {
-        validate(whitelistedToken[_indexToken] == true, 0);
+        validate(whitelistedToken[_indexToken], 0);
         updateTotalBorrows();
         updateTotalFunding(_indexToken);
 
@@ -118,8 +118,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         validateLastUpdateTime(position.lastUpdateTime);
 
         uint _margin;
-        if(position.borrowed > INIT_LOCK_AMOUNT){
-            _margin = position.size - position.collateral; 
+        if(position.borrowed > Math.INIT_LOCK_AMOUNT){ 
             _margin = collectBorrowFee(_key); 
             position.collateral -= _margin; 
             if(_sizeDelta > 0){
@@ -132,7 +131,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         }
 
         uint _delta;
-        if(position.entryFunding > INIT_LOCK_AMOUNT){
+        if(position.entryFunding > Math.INIT_LOCK_AMOUNT){
             bool _hasProfit;
             (_delta, _hasProfit) = collectFundingFee(_user, _indexToken, _long);
             _hasProfit ? position.collateral += _delta : position.collateral -= _delta; 
@@ -143,13 +142,13 @@ contract Vault is FundingModule, ReentrancyGuard {
         borrowMargin(_key, _margin);
         getEntryFunding(_key, _indexToken, _sizeDelta, _long);
 
-        uint _assetAmount = _sizeDelta * ACCURACY / _markPrice;
+        uint _assetAmount = _sizeDelta * Math.ACCURACY / _markPrice;
 
-        if(position.size > 0) _assetAmount += position.size * ACCURACY / position.entryPrice;
+        if(position.size > 0) _assetAmount += position.size * Math.ACCURACY / position.entryPrice;
 
         position.size += _sizeDelta;
         position.collateral += _collateralDelta;
-        position.entryPrice = position.size * ACCURACY / _assetAmount;
+        position.entryPrice = position.size * Math.ACCURACY / _assetAmount;
         position.lastUpdateTime = block.timestamp;
 
         validateLeverage(position.size, position.collateral);
@@ -162,7 +161,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         uint _collateralDelta, 
         bool _long
     ) external onlyHandler(marketRouter) {   
-        validate(whitelistedToken[_indexToken] == true, 0);
+        validate(whitelistedToken[_indexToken], 0);
         updateTotalBorrows();
         updateTotalFunding(_indexToken);
 
@@ -172,8 +171,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         validate(position.size > 0, 16);
         validateLastUpdateTime(position.lastUpdateTime);
 
-        uint _margin = position.size - position.collateral; 
-        _margin = collectBorrowFee(_key); 
+        uint _margin = collectBorrowFee(_key); 
 
         (uint _delta, bool _hasProfit) = collectFundingFee(_user, _indexToken, _long); 
 
@@ -200,7 +198,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         bool _long,
         uint _markPrice
     ) external onlyHandler(VAMM) {
-        validate(whitelistedToken[_indexToken] == true, 0);
+        validate(whitelistedToken[_indexToken], 0);
         updateTotalBorrows();
         updateTotalFunding(_indexToken);
 
@@ -246,7 +244,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         uint _collateralDelta, 
         bool _long
     ) external onlyHandler(marketRouter) {   
-        validate(whitelistedToken[_indexToken] == true, 0);
+        validate(whitelistedToken[_indexToken], 0);
         updateTotalBorrows();
         updateTotalFunding(_indexToken);
 
@@ -254,8 +252,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         Position storage position = positions[_key];
 
         validateLastUpdateTime(position.lastUpdateTime);
-
-        uint _margin = position.size - position.collateral; 
+    
         uint _borrowFee = collectBorrowFee(_key); 
 
         (uint _delta, bool _hasProfit) = collectFundingFee(_user, _indexToken, _long); 
@@ -263,14 +260,14 @@ contract Vault is FundingModule, ReentrancyGuard {
 
         validate(position.collateral >= _collateralDelta + _borrowFee, 19);
         uint _collateralNext = position.collateral - _collateralDelta - _borrowFee; 
-        _margin = position.collateral - _collateralNext; 
+        uint _margin = position.collateral - _collateralNext; 
         
         borrowMargin(_key, _margin); 
 
         position.collateral = _collateralNext; 
         position.lastUpdateTime = block.timestamp;
 
-        _collateralDelta = precisionToStable(_collateralDelta);
+        _collateralDelta = _collateralDelta.precisionToStable();
         IERC20(stable).safeTransfer(_user, _collateralDelta);
         
         validateLeverage(position.size, position.collateral);
@@ -282,7 +279,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         address _indexToken, 
         bool _long
     ) external onlyHandler(marketRouter) {
-        validate(whitelistedToken[_indexToken] == false, 0);
+        validate(!whitelistedToken[_indexToken], 0);
         updateTotalBorrows();
 
         bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
@@ -305,7 +302,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         borrowMarginRedeem(_key, _margin);
 
         if(_collateralDelta > 0){
-            _collateralDelta = precisionToStable(_collateralDelta);
+            _collateralDelta = _collateralDelta.precisionToStable();
             IERC20(stable).safeTransfer(_user, _collateralDelta);
         }
 
@@ -319,7 +316,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         bool _long, 
         address _feeReceiver
     ) external onlyHandler(VAMM) {
-        validate(whitelistedToken[_indexToken] == true, 0);
+        validate(whitelistedToken[_indexToken], 0);
         updateTotalBorrows();
         updateTotalFunding(_indexToken);
 
@@ -361,7 +358,7 @@ contract Vault is FundingModule, ReentrancyGuard {
                     }
                 }
 
-                _remainingLiquidationFee = _collateral * remainingLiquidationFee / PRECISION; 
+                _remainingLiquidationFee = _collateral * remainingLiquidationFee / Math.PRECISION; 
                 _collateral -= _remainingLiquidationFee; 
                 _remainingLiquidationFee += liquidationFee; 
             }
@@ -372,7 +369,7 @@ contract Vault is FundingModule, ReentrancyGuard {
     
         if(_collateral > 0) poolAmount += _collateral;
 
-        _remainingLiquidationFee = precisionToStable(_remainingLiquidationFee);
+        _remainingLiquidationFee = _remainingLiquidationFee.precisionToStable();
         IERC20(stable).safeTransfer(_feeReceiver, _remainingLiquidationFee);
 
         delete positions[_key];
@@ -399,11 +396,11 @@ contract Vault is FundingModule, ReentrancyGuard {
             return (_markPrice, true);
         }
 
-        uint _deviationToLiquidate = PRECISION * PRECISION / (position.size * PRECISION  / _collateral); 
+        uint _deviationToLiquidate = Math.PRECISION * Math.PRECISION / (position.size * Math.PRECISION  / _collateral); 
         
         liquidatePrice = _long ? 
-        (PRECISION * position.entryPrice - position.entryPrice * _deviationToLiquidate) / PRECISION : 
-        position.entryPrice * (PRECISION + _deviationToLiquidate) / PRECISION;
+        (Math.PRECISION * position.entryPrice - position.entryPrice * _deviationToLiquidate) / Math.PRECISION : 
+        position.entryPrice * (Math.PRECISION + _deviationToLiquidate) / Math.PRECISION;
 
         liquidatable = _long ? liquidatePrice >= _markPrice : _markPrice >= liquidatePrice;
     }
@@ -442,14 +439,14 @@ contract Vault is FundingModule, ReentrancyGuard {
         bool _long, 
         bool _increase
     ) public view returns(uint) {
-        return _sizeDelta * calculateOperatingFee(_indexToken, _long, _increase) / PRECISION;
+        return _sizeDelta * calculateOperatingFee(_indexToken, _long, _increase) / Math.PRECISION;
     }
 
     function calculateOperatingFee(address _indexToken, bool _long, bool _increase) public view returns(uint) {
         uint _vammPrice = IVAMM(VAMM).getPrice(_indexToken);
         uint _feedPrice = IPriceFeed(priceFeed).getPrice(_indexToken);
         uint _priceDelta = _vammPrice > _feedPrice ? _vammPrice - _feedPrice : _feedPrice - _vammPrice;
-        _priceDelta = _priceDelta * PRECISION / _vammPrice;
+        _priceDelta = _priceDelta * Math.PRECISION / _vammPrice;
         if(_vammPrice > _feedPrice){
             if(_increase && _long || !_increase && !_long) return calculateOperatingFeeInternal(_priceDelta);
         }
@@ -485,7 +482,7 @@ contract Vault is FundingModule, ReentrancyGuard {
     function calculateOperatingFeeInternal(uint _priceDelta) internal view returns(uint) {
         return _priceDelta >= maxOperatingFeePriceDeviation ? 
         MAX_BASE_OPERATING_FEE + baseOperatingFee : 
-        _priceDelta * operatingFeePriceMultiplier / PRECISION + baseOperatingFee; 
+        _priceDelta * operatingFeePriceMultiplier / Math.PRECISION + baseOperatingFee; 
     }
 
     function calculateFees(
@@ -552,7 +549,7 @@ contract Vault is FundingModule, ReentrancyGuard {
             fundingFeeRedeem(_key, _indexToken, _margin, _long);
         }
 
-        if(_sizeNext != 0){
+        if(_sizeNext > 0){
             position.size = _sizeNext; 
             position.collateral = _collateralNext; 
             position.lastUpdateTime = block.timestamp;
@@ -565,7 +562,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         _hasProfit ? poolAmount -= _realizedPnL : poolAmount += _realizedPnL;
 
         if(_hasProfit || _margin > 0){
-            _margin = precisionToStable(_margin);
+            _margin = _margin.precisionToStable();
             IERC20(stable).safeTransfer(_user, _margin);
         }
     }

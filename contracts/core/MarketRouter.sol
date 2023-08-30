@@ -34,7 +34,7 @@ contract MarketRouter is Governable, ReentrancyGuard {
 
     modifier onlyLiquidator() {
         if(liquidatePrivateMode) 
-        require(liquidators[msg.sender] == true || liquidatorsUtility[msg.sender] == true, "MarketRouter: invalid handler");
+        require(liquidators[msg.sender] || liquidatorsUtility[msg.sender], "MarketRouter: invalid handler");
         _;
     }
 
@@ -45,7 +45,7 @@ contract MarketRouter is Governable, ReentrancyGuard {
         address _controller,
         address _utilityStorage
     ) external onlyHandler(gov) validateAddress(_controller) {  
-        require(isInitialized == false, "MarketRouter: initialized");
+        require(!isInitialized, "MarketRouter: initialized");
         isInitialized = true;
 
         vault = _vault;

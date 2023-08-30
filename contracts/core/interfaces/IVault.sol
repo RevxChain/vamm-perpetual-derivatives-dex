@@ -76,7 +76,14 @@ interface IVault {
         address _user, 
         address _indexToken, 
         bool _long
-    ) external view returns(uint, uint, uint, uint, bool, uint);
+    ) external view returns(
+        uint collateral, 
+        uint size, 
+        uint entryPrice, 
+        uint lastUpdateTime, 
+        bool hasProfit, 
+        uint delta
+    );
 
     function setBaseMaxLeverage(uint _baseMaxLeverage) external;
     function setLiquidationFee(uint _liquidationFee) external;

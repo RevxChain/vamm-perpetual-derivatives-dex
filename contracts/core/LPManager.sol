@@ -26,7 +26,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         address _stable,
         address _positionsTracker
     ) external onlyHandler(gov) {  
-        require(isInitialized == false, "LPManager: initialized");
+        require(!isInitialized, "LPManager: initialized");
         isInitialized = true;
 
         vault = _vault;

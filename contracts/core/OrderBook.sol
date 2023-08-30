@@ -63,7 +63,7 @@ contract OrderBook is Governable, ReentrancyGuard {
     }
 
     modifier onlyOrderKeeper() {
-        if(executePrivateMode) require(orderKeepers[msg.sender] == true, "OrderBook: invalid handler");
+        if(executePrivateMode) require(orderKeepers[msg.sender], "OrderBook: invalid handler");
         _;
     }
 
@@ -75,7 +75,7 @@ contract OrderBook is Governable, ReentrancyGuard {
         uint _minExecutionFee,
         uint _minOrderWorth
     ) external onlyHandler(gov) validateAddress(_controller) {  
-        require(isInitialized == false, "OrderBook: initialized");
+        require(!isInitialized, "OrderBook: initialized");
         isInitialized = true;
 
         require(_minExecutionFee >= MIN_EXECUTION_FEE, "OrderBook: minExecutionFee underflow");
