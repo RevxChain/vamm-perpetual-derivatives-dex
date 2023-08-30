@@ -77,7 +77,7 @@ contract FastPriceFeed is Governable {
         address _controller,
         address _priceFeed
     ) external onlyHandler(gov) validateAddress(_controller) {
-        require(isInitialized == false, "FastPriceFeed: initialized");
+        require(!isInitialized, "FastPriceFeed: initialized");
         isInitialized = true;
 
         controller = _controller;
@@ -90,41 +90,41 @@ contract FastPriceFeed is Governable {
     }
 
     function setWatcher(address _watcher) external onlyHandlers() {
-        require(watchers[_watcher] == false, "FastPriceFeed: watcher already");
+        require(!watchers[_watcher], "FastPriceFeed: watcher already");
         watchers[_watcher] = true;
         watchersCount += 1;
     }
 
     function deleteWatcher(address _watcher) external onlyHandlers() {
-        require(watchers[_watcher] == true, "FastPriceFeed: is not watcher");
+        require(watchers[_watcher], "FastPriceFeed: is not watcher");
         watchers[_watcher] = false;
         watchersCount -= 1;
     }
 
     function setProvider(address _provider) external onlyHandler(dao) {
         Provider storage provider = providers[_provider]; 
-        require(provider.updater == false, "FastPriceFeed: provider is updater");
-        require(provider.banned == false, "FastPriceFeed: provider banned");
+        require(!provider.updater, "FastPriceFeed: provider is updater");
+        require(!provider.banned, "FastPriceFeed: provider banned");
         provider.updater = true;
     }
 
     function deleteProvider(address _provider) external onlyHandlers() {
         Provider storage provider = providers[_provider]; 
-        require(provider.updater == true, "FastPriceFeed: provider is not updater");
+        require(provider.updater, "FastPriceFeed: provider is not updater");
         provider.updater = false;
     }
 
     function discardDenials(address _indexToken) external onlyHandler(dao) whitelisted(_indexToken, true) {
-        require(whitelistedToken[_indexToken] == true || _indexToken == address(0), "FastPriceFeed: invalid token");
+        require(whitelistedToken[_indexToken] || _indexToken == address(0), "FastPriceFeed: invalid token");
         _indexToken == address(0) ? globalDenials = 0 : priceData[_indexToken].denials = 0;
     }
 
     function blockProvider(address _provider) external onlyWatcher() {
         Provider storage provider = providers[_provider]; 
-        require(provider.blocked[msg.sender] == false, "FastPriceFeed: blocked already");
-        require(provider.updater == true, "FastPriceFeed: provider is not updater");
-        require(provider.banned == false, "FastPriceFeed: banned already");
-        provider.blocked[msg.sender] == true;
+        require(!provider.blocked[msg.sender], "FastPriceFeed: blocked already");
+        require(provider.updater, "FastPriceFeed: provider is not updater");
+        require(!provider.banned, "FastPriceFeed: banned already");
+        provider.blocked[msg.sender] = true;
         provider.denials += 1;
 
         if(provider.denials > 2){
@@ -134,15 +134,15 @@ contract FastPriceFeed is Governable {
     }
 
     function denyPrice(address _indexToken) external onlyWatcher() whitelisted(_indexToken, true) {
-        require(priceDenied[_indexToken][msg.sender] == false, "FastPriceFeed: denied already");
-        require(whitelistedToken[_indexToken] == true || _indexToken == address(0), "FastPriceFeed: invalid token");
+        require(!priceDenied[_indexToken][msg.sender], "FastPriceFeed: denied already");
+        require(whitelistedToken[_indexToken] || _indexToken == address(0), "FastPriceFeed: invalid token");
         priceDenied[_indexToken][msg.sender] = true;
         _indexToken == address(0) ? globalDenials += 1 : priceData[_indexToken].denials += 1;
     }
 
     function cancelDenyPrice(address _indexToken) external onlyWatcher() whitelisted(_indexToken, true) {
-        require(priceDenied[_indexToken][msg.sender] == true, "FastPriceFeed: cancelled already");
-        require(whitelistedToken[_indexToken] == true || _indexToken == address(0), "FastPriceFeed: invalid token");
+        require(priceDenied[_indexToken][msg.sender], "FastPriceFeed: cancelled already");
+        require(whitelistedToken[_indexToken] || _indexToken == address(0), "FastPriceFeed: invalid token");
         priceDenied[_indexToken][msg.sender] = false;
         _indexToken == address(0) ? globalDenials -= 1 : priceData[_indexToken].denials -= 1;
     }
@@ -228,7 +228,7 @@ contract FastPriceFeed is Governable {
     function getPrice(address _indexToken, uint _refPrice) external view returns(uint) {
         PriceData memory data = priceData[_indexToken]; 
         uint _price = data.price;
-        if(whitelistedToken[_indexToken] == false) return _refPrice;
+        if(!whitelistedToken[_indexToken]) return _refPrice;
         if(_price == 0) return _refPrice;
         if(_refPrice > 0){
             if(block.timestamp > data.lastUpdate + priceDuration) return _refPrice;

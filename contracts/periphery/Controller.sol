@@ -32,7 +32,7 @@ contract Controller is Governable, ReentrancyGuard {
         address _marketRouter,
         address _positionsTracker
     ) external onlyHandler(gov) {   
-        require(isInitialized == false, "Controller: initialized");
+        require(!isInitialized, "Controller: initialized");
         isInitialized = true;
 
         vault = _vault;

@@ -37,7 +37,7 @@ contract PriceFeed is Governable, ReentrancyGuard {
         address _fastPriceFeed, 
         address _controller
     ) external onlyHandler(gov) validateAddress(_controller) {  
-        require(isInitialized == false, "PriceFeed: initialized");
+        require(!isInitialized, "PriceFeed: initialized");
         isInitialized = true;
 
         fastPriceFeed = _fastPriceFeed;
@@ -91,7 +91,7 @@ contract PriceFeed is Governable, ReentrancyGuard {
 
     function getPrice(address _indexToken) external view returns(uint price) {
         price = getPrimaryPrice(_indexToken);
-        if(favorPrimaryPrice == true && price != 0){
+        if(favorPrimaryPrice && price > 0){
             return price;
         } else {
             if(isFastPriceEnabled || price == 0) price = getFastPrice(_indexToken, price);
