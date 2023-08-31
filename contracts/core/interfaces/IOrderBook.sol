@@ -8,7 +8,6 @@ interface IOrderBook {
     function vault() external view returns(address);
     function VAMM() external view returns(address);
     function stable() external view returns(address);
-    function controller() external view returns(address);
     function executePrivateMode() external view returns(bool);
     function increaseOrdersIndex(address _user) external view returns(uint);
     function decreaseOrdersIndex(address _user) external view returns(uint);

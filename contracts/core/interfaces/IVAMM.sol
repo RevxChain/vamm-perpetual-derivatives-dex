@@ -6,7 +6,6 @@ interface IVAMM {
     function allowedPriceDeviation() external view returns(uint);
     function vault() external view returns(address);
     function positionsTracker() external view returns(address);
-    function controller() external view returns(address);
     function routers(address _router) external view returns(bool);
     function whitelistedToken(address _indexToken) external view returns(bool);
 

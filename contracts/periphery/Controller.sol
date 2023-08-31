@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "../core/interfaces/IPositionsTracker.sol";
 import "../core/interfaces/IMarketRouter.sol";
 import "../oracle/interfaces/IPriceFeed.sol";
+import "../oracle/interfaces/IFastPriceFeed.sol";
 import "../core/interfaces/IOrderBook.sol";
 import "../core/interfaces/IVault.sol";
 import "../core/interfaces/IVAMM.sol";
@@ -16,6 +17,7 @@ contract Controller is Governable, ReentrancyGuard {
     address public vault;
     address public VAMM;
     address public priceFeed;
+    address public fastPriceFeed;
     address public LPManager;
     address public orderBook;
     address public marketRouter;
@@ -27,6 +29,7 @@ contract Controller is Governable, ReentrancyGuard {
         address _vault,
         address _VAMM,
         address _priceFeed,
+        address _fastPriceFeed,
         address _LPManager,
         address _orderBook,
         address _marketRouter,
@@ -38,6 +41,7 @@ contract Controller is Governable, ReentrancyGuard {
         vault = _vault;
         VAMM = _VAMM;
         priceFeed = _priceFeed;
+        fastPriceFeed = _fastPriceFeed;
         LPManager = _LPManager;
         orderBook = _orderBook;
         marketRouter = _marketRouter;
@@ -89,6 +93,27 @@ contract Controller is Governable, ReentrancyGuard {
         IMarketRouter(marketRouter).deleteTokenConfig(_indexToken);
         IOrderBook(orderBook).deleteTokenConfig(_indexToken);
         IPriceFeed(priceFeed).deleteTokenConfig(_indexToken);
+        IFastPriceFeed(fastPriceFeed).deleteTokenConfig(_indexToken);
+    }
+
+    function setOracleTokenConfig(
+        address _indexToken,
+        uint _price,
+        uint _refPrice,
+        uint _maxDelta,
+        uint _maxCumulativeDelta
+    ) external onlyHandler(dao) nonReentrant() { 
+        IFastPriceFeed(fastPriceFeed).setTokenConfig(
+            _indexToken,
+            _price,
+            _refPrice,
+            _maxDelta,
+            _maxCumulativeDelta
+        );
+    }
+
+    function deleteOracleTokenConfig(address _indexToken) external onlyHandler(dao) nonReentrant() {  
+        IFastPriceFeed(fastPriceFeed).deleteTokenConfig(_indexToken);
     }
 }
 

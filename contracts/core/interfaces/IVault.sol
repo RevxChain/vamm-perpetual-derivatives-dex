@@ -9,7 +9,6 @@ interface IVault {
     function priceFeed() external view returns(address);
     function positionsTracker() external view returns(address);
     function marketRouter() external view returns(address);
-    function controller() external view returns(address);
 
     function shouldValidatePoolShares() external view returns(bool);
 

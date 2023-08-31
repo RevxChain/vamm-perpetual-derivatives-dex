@@ -6,7 +6,6 @@ interface IMarketRouter {
     function vault() external view returns(address);
     function VAMM() external view returns(address);
     function stable() external view returns(address);
-    function controller() external view returns(address);
     function utilityStorage() external view returns(address);
     function liquidatePrivateMode() external view returns(bool);
     function liquidators(address _liquidator) external view returns(bool);
