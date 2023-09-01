@@ -4,9 +4,9 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "../core/interfaces/IPositionsTracker.sol";
+import "../oracle/interfaces/IFastPriceFeed.sol";
 import "../core/interfaces/IMarketRouter.sol";
 import "../oracle/interfaces/IPriceFeed.sol";
-import "../oracle/interfaces/IFastPriceFeed.sol";
 import "../core/interfaces/IOrderBook.sol";
 import "../core/interfaces/IVault.sol";
 import "../core/interfaces/IVAMM.sol";

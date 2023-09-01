@@ -16,16 +16,20 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
 
     uint public constant MAX_BASE_PROVIDER_FEE = 100;
     uint public constant MAX_PROFIT_PROVIDER_FEE = 200;
+    uint public constant MAX_LOCK_DURATION = 1 days;
     
     uint public baseProviderFee;
     uint public profitProviderFee;
     uint public feeReserves;
+    uint public lockDuration;
 
     address public vault;
     address public stable;
     address public positionsTracker;
 
     bool public isInitialized;
+
+    mapping(address => uint) public lastAdded;
 
     constructor() ERC20("Vault Supply Token", "sToken") {}
 
@@ -43,20 +47,27 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
 
         baseProviderFee = 50;
         profitProviderFee = 100;
+        lockDuration = 10 minutes;
     }
 
     function setBaseProviderFee(uint _baseProviderFee) external onlyHandler(dao) {
-        require(MAX_BASE_PROVIDER_FEE >= _baseProviderFee, "LPManager: ");
+        require(MAX_BASE_PROVIDER_FEE >= _baseProviderFee, "LPManager: invalid baseProviderFee");
         baseProviderFee = _baseProviderFee;
     }
 
     function setProfitProviderFee(uint _profitProviderFee) external onlyHandler(dao) {
-        require(MAX_PROFIT_PROVIDER_FEE >= _profitProviderFee, "LPManager: ");
+        require(MAX_PROFIT_PROVIDER_FEE >= _profitProviderFee, "LPManager: invalid profitProviderFee");
         profitProviderFee = _profitProviderFee;
+    }
+
+    function setLockDuration(uint _lockDuration) external onlyHandler(dao) {
+        require(MAX_LOCK_DURATION >= _lockDuration, "LPManager: invalid lockDuration");
+        lockDuration = _lockDuration;
     }
 
     function addLiquidity(uint _underlyingAmount) external nonReentrant() {
         validateAmount(_underlyingAmount);
+        address _user = msg.sender;
        
         _underlyingAmount = collectFees(_underlyingAmount);
         uint _amount = _underlyingAmount.stableToPrecision();
@@ -68,19 +79,22 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
             _userShare = _amount.sqrt();
             _mint(vault, Math.INIT_LOCK_AMOUNT);
         }
-        _mint(msg.sender, _userShare);
+        _mint(_user, _userShare);
+        lastAdded[_user] = block.timestamp;
 
         IVault(vault).increasePool(_amount);
-        IERC20(stable).safeTransferFrom(msg.sender, vault, _underlyingAmount);
+        IERC20(stable).safeTransferFrom(_user, vault, _underlyingAmount);
     }
 
     function removeLiquidity(uint _sTokenAmount) external nonReentrant() {
+        address _user = msg.sender;
+        require(block.timestamp >= lastAdded[_user] + lockDuration, "LPManager: liquidity locked");
         validateAmount(_sTokenAmount);
         uint _underlyingAmount = calculateUnderlying(_sTokenAmount);
-
-        _burn(msg.sender, _sTokenAmount);
+        
+        _burn(_user, _sTokenAmount);
  
-        IVault(vault).decreasePool(msg.sender, _underlyingAmount.stableToPrecision(), _underlyingAmount);
+        IVault(vault).decreasePool(_user, _underlyingAmount.stableToPrecision(), _underlyingAmount);
     }
 
     function calculateUnderlying(uint _sTokenAmount) public view returns(uint underlyingAmount) {
@@ -105,12 +119,14 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         }
 
         uint _feeAmount = _amount * (_baseFee + _profitFee) / Math.PRECISION;
-        if(_feeAmount == 0) return _amount;
+        
+        if(IVault(vault).totalBorrows() > IVault(vault).availableLiquidity() || _feeAmount == 0) return _amount;
+
         feeReserves += _feeAmount;
-        uint afterFeeAmount = _amount - _feeAmount;
+        uint _afterFeeAmount = _amount - _feeAmount;
         IERC20(stable).safeTransferFrom(msg.sender, address(this), _feeAmount);
 
-        return afterFeeAmount;
+        return _afterFeeAmount;
     }
 
     function validateAmount(uint _amount) internal pure {

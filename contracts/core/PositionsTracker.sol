@@ -72,12 +72,12 @@ contract PositionsTracker is Governable, ReentrancyGuard {
     }
 
     function setDeltaDuration(uint _deltaDuration) external onlyHandlers() {
-        require(MAX_DELTA_DURATION >= _deltaDuration,  "PositionsTracker: ");
+        require(MAX_DELTA_DURATION >= _deltaDuration, "PositionsTracker: invalid deltaDuration");
         deltaDuration = _deltaDuration;
     }
 
     function setLiquidityDeviation(uint _liquidityDeviation) external onlyHandlers() {
-        require(MAX_LIQUIDITY_DEVIATION >= _liquidityDeviation,  "PositionsTracker: ");
+        require(MAX_LIQUIDITY_DEVIATION >= _liquidityDeviation, "PositionsTracker: invalid liquidityDeviation");
         liquidityDeviation = _liquidityDeviation;
     }
 
@@ -106,8 +106,8 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         uint _maxTotalShortSizes
     ) external onlyHandlers() whitelisted(_indexToken, true) {
         Config storage config = configs[_indexToken];
-        require(config.totalLongSizes > _maxTotalLongSizes, "PositionsTracker: actual long sizes exceeded");
-        require(config.totalShortSizes > _maxTotalShortSizes, "PositionsTracker: actual short sizes exceeded");
+        require(_maxTotalLongSizes > config.totalLongSizes, "PositionsTracker: actual long sizes exceeded");
+        require(_maxTotalShortSizes > config.totalShortSizes, "PositionsTracker: actual short sizes exceeded");
         config.maxTotalLongSizes = _maxTotalLongSizes;
         config.maxTotalShortSizes = _maxTotalShortSizes;
     }
@@ -165,7 +165,9 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         bool _isActual = true;
         uint _poolAmount = IVault(vault).poolAmount();
 
-        if(calculateDelta(lastPoolAmount, _poolAmount) > liquidityDeviation) _isActual = false;
+        (, uint _delta) = calculateDelta(lastPoolAmount, _poolAmount);
+
+        if(_delta > liquidityDeviation) _isActual = false;
         if(block.timestamp >= lastUpdatedTime + deltaDuration) _isActual = false;
 
         return (_isActual, hasTradersProfit, totalPositionsDelta);
@@ -182,8 +184,10 @@ contract PositionsTracker is Governable, ReentrancyGuard {
 
         if(_totalDelta > 0){
             hasProfit = true;    
-        } 
-
+        } else {
+            _totalDelta = -_totalDelta;
+        }
+        
         delta = uint(_totalDelta) * Math.PRECISION / _totalSizes;
     }
 
@@ -195,8 +199,7 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         
         if(config.totalLongAssets > 0){
             uint _longAveragePrice = config.totalLongSizes / config.totalLongAssets;
-            uint _longPriceDelta = _markPrice > _longAveragePrice ? 
-            _markPrice - _longAveragePrice : _longAveragePrice - _markPrice;
+            (uint _longPriceDelta, ) = calculateDelta(_markPrice, _longAveragePrice);
             int _longProfit = int(_longPriceDelta * config.totalLongAssets);
             if(_longAveragePrice > _markPrice) _longProfit = -_longProfit;
             totalSizes += config.totalLongSizes;
@@ -204,8 +207,7 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         }
         if(config.totalShortAssets > 0){
             uint _shortAveragePrice = config.totalShortSizes / config.totalShortAssets;
-            uint _shortPriceDelta = _markPrice > _shortAveragePrice ? 
-            _markPrice - _shortAveragePrice : _shortAveragePrice - _markPrice;
+            (uint _shortPriceDelta, ) = calculateDelta(_markPrice, _shortAveragePrice);
             int _shortProfit = int(_shortPriceDelta * config.totalShortAssets);
             if(_markPrice > _shortAveragePrice) _shortProfit = -_shortProfit;
             totalSizes += config.totalShortSizes;
@@ -213,8 +215,8 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         } 
     }
 
-    function calculateDelta(uint _num, uint _refNum) internal pure returns(uint delta) {
+    function calculateDelta(uint _num, uint _refNum) internal pure returns(uint delta, uint pDelta) {
         delta = _num > _refNum ? _num - _refNum : _refNum - _num;
-        delta = delta * Math.PRECISION / _num;
+        pDelta = delta * Math.PRECISION / _num;
     }
 }
