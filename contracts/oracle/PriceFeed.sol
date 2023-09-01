@@ -28,7 +28,7 @@ contract PriceFeed is Governable, ReentrancyGuard {
         uint priceDecimals;
     }
 
-    modifier whitelisted(address _indexToken, bool _include){
+    modifier whitelisted(address _indexToken, bool _include) {
         require(whitelistedToken[_indexToken] == _include, "PriceFeed: invalid whitelisted");
         _;
     }

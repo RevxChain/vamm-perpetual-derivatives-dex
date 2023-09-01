@@ -4,20 +4,33 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "../libraries/Governable.sol";
+import "./interfaces/IVault.sol";
+import "./interfaces/IVAMM.sol";
 import "../libraries/Math.sol";
 
 contract PositionsTracker is Governable, ReentrancyGuard {
     using Math for uint;
 
-    address public VAMM;
-    address public LPManager;
-    address public stable;
-    address public vault;
+    uint public constant MAX_DELTA_DURATION = 1 days;
+    uint public constant MAX_LIQUIDITY_DEVIATION = 2000;
 
+    uint public whitelistedTokensCount;
+    uint public totalPositionsDelta; 
+    uint public lastUpdatedTime;
+    uint public deltaDuration;
+    uint public lastPoolAmount;
+    uint public liquidityDeviation;
+
+    address public vault;
+    address public VAMM;
+    address public stable;
+    
+    bool public hasTradersProfit;
     bool public isInitialized;
 
     mapping(address => bool) public whitelistedToken;
     mapping(address => Config) public configs;
+    mapping(address => bool) public updaters;
 
     struct Config {
         uint totalLongSizes;
@@ -33,6 +46,11 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         _;
     }
 
+    modifier onlyUpdater() {
+        require(updaters[msg.sender], "PositionsTracker: invalid handler");
+        _;
+    }
+
     function initialize(
         address _vault,
         address _VAMM,
@@ -44,6 +62,23 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         vault = _vault;
         VAMM = _VAMM;
         controller = _controller;
+
+        deltaDuration = 12 hours;
+        liquidityDeviation = 1000;
+    }
+
+    function setUpdater(address _updater, bool _bool) external onlyHandlers() {
+        updaters[_updater] = _bool;
+    }
+
+    function setDeltaDuration(uint _deltaDuration) external onlyHandlers() {
+        require(MAX_DELTA_DURATION >= _deltaDuration,  "PositionsTracker: ");
+        deltaDuration = _deltaDuration;
+    }
+
+    function setLiquidityDeviation(uint _liquidityDeviation) external onlyHandlers() {
+        require(MAX_LIQUIDITY_DEVIATION >= _liquidityDeviation,  "PositionsTracker: ");
+        liquidityDeviation = _liquidityDeviation;
     }
 
     function setTokenConfig(
@@ -55,10 +90,12 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         whitelistedToken[_indexToken] = true;
         config.maxTotalLongSizes = _maxTotalLongSizes;
         config.maxTotalShortSizes = _maxTotalShortSizes;
+        whitelistedTokensCount += 1;
     }
 
     function deleteTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, true) {   
         whitelistedToken[_indexToken] = false;
+        whitelistedTokensCount -= 1;
 
         delete configs[_indexToken];
     }
@@ -115,5 +152,69 @@ contract PositionsTracker is Governable, ReentrancyGuard {
             config.totalShortSizes -= _sizeDelta;
             config.totalShortAssets > _assetsAmount ? config.totalShortAssets -= _assetsAmount : 0;
         }
+    }
+
+    function updateTotalPositionsProfit(address[] calldata _indexTokens) external onlyUpdater() {
+        require(_indexTokens.length == whitelistedTokensCount, "PositionsTracker: invalid tokens array length");
+        (hasTradersProfit, totalPositionsDelta) = calculateProfits(_indexTokens);
+        lastPoolAmount = IVault(vault).poolAmount();
+        lastUpdatedTime = block.timestamp;
+    } 
+
+    function getPositionsData() external view returns(bool, bool, uint) {
+        bool _isActual = true;
+        uint _poolAmount = IVault(vault).poolAmount();
+
+        if(calculateDelta(lastPoolAmount, _poolAmount) > liquidityDeviation) _isActual = false;
+        if(block.timestamp >= lastUpdatedTime + deltaDuration) _isActual = false;
+
+        return (_isActual, hasTradersProfit, totalPositionsDelta);
+    }
+
+    function calculateProfits(address[] calldata _indexTokens) internal view returns(bool hasProfit, uint delta) {
+        uint _totalSizes;
+        int _totalDelta;
+        for(uint i; _indexTokens.length > i; i++){
+            (uint _size, int _delta) = calculateProfit(_indexTokens[i]);
+            _totalSizes += _size;
+            _totalDelta += _delta;
+        }
+
+        if(_totalDelta > 0){
+            hasProfit = true;    
+        } 
+
+        delta = uint(_totalDelta) * Math.PRECISION / _totalSizes;
+    }
+
+    function calculateProfit(
+        address _indexToken
+    ) internal view whitelisted(_indexToken, true) returns(uint totalSizes, int delta) {
+        Config memory config = configs[_indexToken];
+        uint _markPrice = IVAMM(VAMM).getPrice(_indexToken);
+        
+        if(config.totalLongAssets > 0){
+            uint _longAveragePrice = config.totalLongSizes / config.totalLongAssets;
+            uint _longPriceDelta = _markPrice > _longAveragePrice ? 
+            _markPrice - _longAveragePrice : _longAveragePrice - _markPrice;
+            int _longProfit = int(_longPriceDelta * config.totalLongAssets);
+            if(_longAveragePrice > _markPrice) _longProfit = -_longProfit;
+            totalSizes += config.totalLongSizes;
+            delta += _longProfit;
+        }
+        if(config.totalShortAssets > 0){
+            uint _shortAveragePrice = config.totalShortSizes / config.totalShortAssets;
+            uint _shortPriceDelta = _markPrice > _shortAveragePrice ? 
+            _markPrice - _shortAveragePrice : _shortAveragePrice - _markPrice;
+            int _shortProfit = int(_shortPriceDelta * config.totalShortAssets);
+            if(_markPrice > _shortAveragePrice) _shortProfit = -_shortProfit;
+            totalSizes += config.totalShortSizes;
+            delta += _shortProfit;
+        } 
+    }
+
+    function calculateDelta(uint _num, uint _refNum) internal pure returns(uint delta) {
+        delta = _num > _refNum ? _num - _refNum : _refNum - _num;
+        delta = delta * Math.PRECISION / _num;
     }
 }
