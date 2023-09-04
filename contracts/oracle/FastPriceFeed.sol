@@ -17,6 +17,7 @@ contract FastPriceFeed is Governable {
     uint public constant MAX_PRICE_DURATION = 30 minutes;
     uint public constant MAX_PRICE_DATA_INTERVAL = 60 minutes;
     
+    uint public whitelistedTokensCount;
     uint public priceDuration;
     uint public watchersCount;
     uint public minBlockInterval;
@@ -119,9 +120,7 @@ contract FastPriceFeed is Governable {
         provider.updater = false;
     }
 
-    function discardDenials(
-        address _indexToken
-    ) external onlyHandler(dao) validateToken(_indexToken) whitelisted(_indexToken, true) {
+    function discardDenials(address _indexToken) external onlyHandler(dao) validateToken(_indexToken) {
         _indexToken == address(0) ? globalDenials = 0 : priceData[_indexToken].denials = 0;
     }
 
@@ -139,20 +138,20 @@ contract FastPriceFeed is Governable {
         }
     }
 
-    function denyPrice(
-        address _indexToken
-    ) external onlyWatcher() validateToken(_indexToken) whitelisted(_indexToken, true) {
+    function denyPrice(address _indexToken) external onlyWatcher() validateToken(_indexToken) {
         require(!priceDenied[_indexToken][msg.sender], "FastPriceFeed: denied already");
         priceDenied[_indexToken][msg.sender] = true;
         _indexToken == address(0) ? globalDenials += 1 : priceData[_indexToken].denials += 1;
     }
 
-    function cancelDenyPrice(
-        address _indexToken
-    ) external onlyWatcher() validateToken(_indexToken) whitelisted(_indexToken, true) {
+    function cancelDenyPrice(address _indexToken) external onlyWatcher() validateToken(_indexToken) {
         require(priceDenied[_indexToken][msg.sender], "FastPriceFeed: cancelled already");
         priceDenied[_indexToken][msg.sender] = false;
         _indexToken == address(0) ? globalDenials -= 1 : priceData[_indexToken].denials -= 1;
+    }
+
+    function denyAmmPoolPrice(address _indexToken) external onlyProvider() whitelisted(_indexToken, true) {
+        IPriceFeed(priceFeed).denyAmmPoolPrice(_indexToken);
     }
 
     function setMaxTimeDeviation(uint _maxTimeDeviation) external onlyHandlers() {
@@ -212,6 +211,7 @@ contract FastPriceFeed is Governable {
         uint _delta = calculateDelta(_price, _refPrice);
 
         validateDelta(_maxDelta, _delta, _maxCumulativeDelta, _delta);
+        whitelistedTokensCount += 1;
 
         data.price = _price;
         data.prevPrice = _price;
@@ -226,6 +226,7 @@ contract FastPriceFeed is Governable {
 
     function deleteTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, true) {
         whitelistedToken[_indexToken] = false;
+        whitelistedTokensCount -= 1;
         delete priceData[_indexToken];
     }
 
@@ -234,6 +235,7 @@ contract FastPriceFeed is Governable {
         uint[] memory _prices, 
         uint _timestamp
     ) external onlyProvider() {
+        require(_indexTokens.length == whitelistedTokensCount, "FastPriceFeed: invalid tokens array length");
         bool shouldUpdate = shouldUpdatePrices(_timestamp);
 
         if(shouldUpdate){

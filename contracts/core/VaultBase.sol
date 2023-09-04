@@ -4,9 +4,7 @@ pragma solidity 0.8.19;
 import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
 
-contract VaultBase is Governable {
-    using Math for uint; 
-
+contract VaultBase is Governable { 
     uint public constant MIN_LEVERAGE = 11000; 
     uint public constant MIN_LIQUIDATION_FEE = 5e18; 
     uint public constant MAX_LIQUIDATION_FEE = 50e18; 
@@ -82,7 +80,7 @@ contract VaultBase is Governable {
     }
 
     function validateLastUpdateTime(uint _lastUpdateTime) internal view {
-        if(_lastUpdateTime != 0) validate(block.timestamp > _lastUpdateTime + minChangeTime, 15);
+        if(_lastUpdateTime > 0) validate(block.timestamp > _lastUpdateTime + minChangeTime, 15);
     }
 
     function calculatePoolIncrease(uint _totalPool, uint _rate, uint _lastUpdate) internal view returns(uint) {

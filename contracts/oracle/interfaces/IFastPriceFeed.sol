@@ -3,6 +3,7 @@ pragma solidity 0.8.19;
 
 interface IFastPriceFeed {
 
+    function whitelistedTokensCount() external view returns(uint);
     function priceDuration() external view returns(uint);
     function watchersCount() external view returns(uint);
     function minBlockInterval() external view returns(uint);
@@ -32,6 +33,8 @@ interface IFastPriceFeed {
     function denyPrice(address _indexToken) external;
 
     function cancelDenyPrice(address _indexToken) external;
+
+    function denyAmmPoolPrice(address _indexToken) external;
 
     function setMaxTimeDeviation(uint _maxTimeDeviation) external;
 

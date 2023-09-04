@@ -8,6 +8,7 @@ import "./FundingModule.sol";
 
 contract Vault is FundingModule, ReentrancyGuard {
     using SafeERC20 for IERC20;
+    using Math for uint;
 
     uint public constant MAX_BASE_OPERATING_FEE = 50;
 

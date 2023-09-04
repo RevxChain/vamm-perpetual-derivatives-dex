@@ -53,6 +53,8 @@ contract MarketRouter is Governable, ReentrancyGuard {
         stable = _stable;
         controller = _controller;
         utilityStorage = _utilityStorage;
+
+        liquidatePrivateMode = true;
     }
 
     function setTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, false) {   
