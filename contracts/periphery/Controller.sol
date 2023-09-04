@@ -61,9 +61,11 @@ contract Controller is Governable, ReentrancyGuard {
         uint _maxTotalLongSizes,
         uint _maxTotalShortSizes,
         address _priceFeed,
-        uint _priceDecimals
+        uint _priceDecimals,
+        address _ammPool,
+        uint _poolDecimals
     ) external onlyHandler(dao) nonReentrant() { 
-        IPriceFeed(priceFeed).setTokenConfig(_indexToken, _priceFeed, _priceDecimals);
+        IPriceFeed(priceFeed).setTokenConfig(_indexToken, _priceFeed, _priceDecimals, _ammPool, _poolDecimals);
 
         uint _referencePrice = IPriceFeed(priceFeed).getPrice(_indexToken);
         require(_referencePrice > 0, "Controller: invalid price");
@@ -84,6 +86,14 @@ contract Controller is Governable, ReentrancyGuard {
 
         uint _referencePrice = IPriceFeed(priceFeed).getPrice(_indexToken);
         require(_referencePrice > 0, "Controller: invalid price");
+    }
+
+    function setAmmPool(
+        address _indexToken, 
+        address _ammPool, 
+        uint _poolDecimals
+    ) external onlyHandlers() nonReentrant() {
+        IPriceFeed(priceFeed).setAmmPool(_indexToken, _ammPool, _poolDecimals);
     }
 
     function deleteTokenConfig(address _indexToken) external onlyHandler(dao) nonReentrant() {  
