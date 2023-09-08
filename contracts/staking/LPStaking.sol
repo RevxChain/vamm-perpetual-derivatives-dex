@@ -65,8 +65,8 @@ contract LPStaking is Governable, ReentrancyGuard {
         address _user = msg.sender;
         Stake storage data = stakers[_user];
         require(data.lastTimestamp == 0, "LPStaking: stake already");
-        require(_lockDuration >= minLockDuration, "LPStaking: _lockDuration underflow");
-        require(Math.ONE_YEAR >= _lockDuration, "LPStaking: _lockDuration overflow");
+        require(_lockDuration >= minLockDuration, "LPStaking: lockDuration underflow");
+        require(Math.ONE_YEAR >= _lockDuration, "LPStaking: lockDuration overflow");
         require(IERC20(lpManager).balanceOf(_user) >= _amount, "LPStaking: invalid balance");
         require(_amount > 0, "LPStaking: invalid amount"); 
         if(timeSharesPool == 0) lastUpdated = block.timestamp;
@@ -128,7 +128,6 @@ contract LPStaking is Governable, ReentrancyGuard {
 
         updateTimeSharesPool();
         updateUserTimeShares(_user);
-
         collectExtraRewards(_user);
 
         timeSharesPool -= data.timeShares;

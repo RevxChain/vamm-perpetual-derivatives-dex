@@ -310,7 +310,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         delete positions[_key];
     }
 
-     function liquidatePosition(
+    function liquidatePosition(
         address _user,  
         address _indexToken,
         uint _sizeDelta,

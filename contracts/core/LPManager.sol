@@ -14,10 +14,12 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Math for uint;
 
+    uint public constant MAX_BASE_REMOVE_FEE = 50;
     uint public constant MAX_BASE_PROVIDER_FEE = 100;
-    uint public constant MAX_PROFIT_PROVIDER_FEE = 200;
+    uint public constant MAX_PROFIT_PROVIDER_FEE = 150;
     uint public constant MAX_LOCK_DURATION = 1 days;
     
+    uint public baseRemoveFee;
     uint public baseProviderFee;
     uint public profitProviderFee;
     uint public feeReserves;
@@ -45,9 +47,15 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         stable = _stable;
         positionsTracker = _positionsTracker;
 
-        baseProviderFee = 50;
-        profitProviderFee = 100;
+        baseRemoveFee = 20;
+        baseProviderFee = 40;
+        profitProviderFee = 800;
         lockDuration = 10 minutes;
+    }
+
+    function setBaseRemoveFee(uint _baseRemoveFee) external onlyHandler(dao) {
+        require(MAX_BASE_REMOVE_FEE >= _baseRemoveFee, "LPManager: invalid baseRemoveFee");
+        baseRemoveFee = _baseRemoveFee;
     }
 
     function setBaseProviderFee(uint _baseProviderFee) external onlyHandler(dao) {
@@ -69,7 +77,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         validateAmount(_underlyingAmount);
         address _user = msg.sender;
        
-        _underlyingAmount = collectFees(_underlyingAmount);
+        _underlyingAmount = collectAddFees(_underlyingAmount);
         uint _amount = _underlyingAmount.stableToPrecision();
 
         uint _userShare; 
@@ -90,8 +98,9 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         address _user = msg.sender;
         require(block.timestamp >= lastAdded[_user] + lockDuration, "LPManager: liquidity locked");
         validateAmount(_sTokenAmount);
-        uint _underlyingAmount = calculateUnderlying(_sTokenAmount);
-        
+
+        uint _underlyingAmount = collectRemoveFees(calculateUnderlying(_sTokenAmount));
+
         _burn(_user, _sTokenAmount);
  
         IVault(vault).decreasePool(_user, _underlyingAmount.stableToPrecision(), _underlyingAmount);
@@ -106,7 +115,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         return 9;
     }
     
-    function collectFees(uint _amount) internal returns(uint) {
+    function collectAddFees(uint _amount) internal returns(uint) {
         (bool _isActual, bool _hasProfit, uint _totalDelta) = IPositionsTracker(positionsTracker).getPositionsData();
         uint _baseFee = baseProviderFee;
         uint _profitFee;
@@ -125,6 +134,31 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         feeReserves += _feeAmount;
         uint _afterFeeAmount = _amount - _feeAmount;
         IERC20(stable).safeTransferFrom(msg.sender, address(this), _feeAmount);
+
+        return _afterFeeAmount;
+    }
+
+    function collectRemoveFees(uint _amount) internal returns(uint) {
+        (bool _isActual, bool _hasProfit, uint _totalDelta) = IPositionsTracker(positionsTracker).getPositionsData();
+        uint _baseFee = baseProviderFee;
+        uint _profitFee = baseRemoveFee;
+        uint _removeFee;
+        if(_isActual){
+            if(_hasProfit){
+                _baseFee = _totalDelta / 10 > MAX_PROFIT_PROVIDER_FEE ? _baseFee : MAX_PROFIT_PROVIDER_FEE;
+            } else {
+                _profitFee = _totalDelta / 10 > _profitFee ? 0 : profitProviderFee;
+            }
+        }
+
+        if(IVault(vault).totalBorrows() > IVault(vault).availableLiquidity()) _removeFee = baseRemoveFee;
+
+        uint _feeAmount = _amount * (_baseFee + _profitFee + _removeFee) / Math.PRECISION;
+        if(_feeAmount == 0) return _amount;
+
+        feeReserves += _feeAmount;
+        uint _afterFeeAmount = _amount - _feeAmount;
+        IVault(vault).decreasePool(address(this), _feeAmount.stableToPrecision(), _feeAmount);
 
         return _afterFeeAmount;
     }

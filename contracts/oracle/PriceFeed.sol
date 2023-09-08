@@ -2,11 +2,12 @@
 pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@uniswap/contracts/interfaces/IUniswapV2Pair.sol";
+import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
 import "./interfaces/IPriceAggregator.sol";
 import "./interfaces/IFastPriceFeed.sol";
 import "../libraries/Governable.sol";
+import "../libraries/Math.sol";
 
 contract PriceFeed is Governable, ReentrancyGuard {
 
@@ -105,8 +106,8 @@ contract PriceFeed is Governable, ReentrancyGuard {
     function denyAmmPoolPrice(address _indexToken) external onlyHandler(fastPriceFeed) whitelisted(_indexToken, true) {
         Config storage config = configs[_indexToken]; 
 
-        configs[_indexToken].ammPool = address(0);
-        configs[_indexToken].poolDecimals = 0;
+        config.ammPool = address(0);
+        config.poolDecimals = 0;
     }
 
     function setIsFastPriceEnabled(bool _isFastPriceEnabled) external onlyHandlers() {
@@ -213,7 +214,7 @@ contract PriceFeed is Governable, ReentrancyGuard {
         return price * ACCURACY / (10 ** config.poolDecimals);
     }
 
-    function validatePoolAddress(address _indexToken, address _pool) internal pure {
+    function validatePoolAddress(address _indexToken, address _pool) internal view {
         if(_pool != address(0))
         require(
             _indexToken == IUniswapV2Pair(_pool).token0() || 
