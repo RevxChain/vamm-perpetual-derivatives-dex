@@ -19,6 +19,7 @@ interface IVault {
     function remainingLiquidationFee() external view returns(uint);
     function borrowPool() external view returns(uint);
     function totalBorrows() external view returns(uint);
+    function feeReserves() external view returns(uint); 
     function lastUpdateTotalBorrows() external view returns(uint);
     function utilizationRateKink() external view returns(uint);
     function baseBorrowRatePerYear() external view returns(uint);
@@ -99,6 +100,7 @@ interface IVault {
     function setBaseOperatingFee(uint _baseOperatingFee) external;
     function setMaxOperatingFeePriceDeviation(uint _maxOperatingFeePriceDeviation) external;
     function setOperatingFeePriceMultiplier(uint _operatingFeePriceMultiplier) external;
+    function withdrawFees() external;
 
     function updateTotalBorrows() external returns(uint);
 

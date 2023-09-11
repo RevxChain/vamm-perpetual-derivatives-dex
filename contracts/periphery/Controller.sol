@@ -2,12 +2,15 @@
 pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../core/interfaces/IPositionsTracker.sol";
 import "../oracle/interfaces/IFastPriceFeed.sol";
 import "../core/interfaces/IMarketRouter.sol";
+import "../staking/interfaces/ILPStaking.sol";
 import "../oracle/interfaces/IPriceFeed.sol";
 import "../core/interfaces/IOrderBook.sol";
+import "../core/interfaces/ILPManager.sol";
 import "../core/interfaces/IVault.sol";
 import "../core/interfaces/IVAMM.sol";
 import "../libraries/Governable.sol";
@@ -22,6 +25,8 @@ contract Controller is Governable, ReentrancyGuard {
     address public orderBook;
     address public marketRouter;
     address public positionsTracker;
+    address public LPStaking;
+    address public govToken;
     
     bool public isInitialized;
 
@@ -33,7 +38,9 @@ contract Controller is Governable, ReentrancyGuard {
         address _LPManager,
         address _orderBook,
         address _marketRouter,
-        address _positionsTracker
+        address _positionsTracker,
+        address _LPStaking,
+        address _govToken
     ) external onlyHandler(gov) {   
         require(!isInitialized, "Controller: initialized");
         isInitialized = true;
@@ -46,6 +53,8 @@ contract Controller is Governable, ReentrancyGuard {
         orderBook = _orderBook;
         marketRouter = _marketRouter;
         positionsTracker = _positionsTracker;
+        LPStaking = _LPStaking;
+        govToken = _govToken;
     }
 
     function setErrors(string[] calldata _errors) external onlyHandler(gov) {
@@ -124,6 +133,19 @@ contract Controller is Governable, ReentrancyGuard {
 
     function deleteOracleTokenConfig(address _indexToken) external onlyHandler(dao) nonReentrant() {  
         IFastPriceFeed(fastPriceFeed).deleteTokenConfig(_indexToken);
+    }
+
+    function distributeFees(uint _extraRewardAmount) external onlyHandlers() nonReentrant() {
+        ILPManager(LPManager).withdrawFees();
+        IVault(vault).withdrawFees();
+        address _stable = ILPManager(LPManager).stable();
+        uint _amount = IERC20(_stable).balanceOf(address(this));
+        IERC20(_stable).approve(LPManager, _amount);
+        ILPManager(LPManager).addLiquidity(_amount);
+        _amount = IERC20(LPManager).balanceOf(address(this));
+        IERC20(LPManager).approve(LPStaking, _amount);
+        IERC20(govToken).approve(LPStaking, _extraRewardAmount);
+        ILPStaking(LPStaking).addRewards(_amount, _extraRewardAmount);
     }
 }
 

@@ -11,6 +11,8 @@ interface IController {
     function orderBook() external view returns(address);
     function marketRouter() external view returns(address);
     function positionsTracker() external view returns(address);
+    function LPStaking() external view returns(address);
+    function govToken() external view returns(address);
 
     function setErrors(string[] calldata _errors) external;
 
@@ -41,5 +43,7 @@ interface IController {
     ) external;
 
     function deleteOracleTokenConfig(address _indexToken) external;
+
+    function distributeFees(uint _extraRewardAmount) external;
     
 }

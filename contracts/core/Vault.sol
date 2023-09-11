@@ -80,6 +80,10 @@ contract Vault is FundingModule, ReentrancyGuard {
         operatingFeePriceMultiplier = _operatingFeePriceMultiplier;
     }
 
+    function withdrawFees() external onlyHandler(controller) {
+        IERC20(stable).safeTransfer(msg.sender, feeReserves.precisionToStable());
+    }
+
     function increasePool(uint _amount) external onlyHandler(LPManager) {
         poolAmount += _amount;
     }

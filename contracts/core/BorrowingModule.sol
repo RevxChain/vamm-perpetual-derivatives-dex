@@ -8,6 +8,7 @@ contract BorrowingModule is VaultBase {
     uint public constant MAX_BASE_BORROW_RATE_PER_YEAR = 5e16; 
     uint public constant MAX_EXTRA_BORROW_RATE_PER_YEAR = 10e16; 
     
+    uint public feeReserves;
     uint public borrowPool; 
     uint public totalBorrows;
     uint public lastUpdateTotalBorrows; 
@@ -89,20 +90,22 @@ contract BorrowingModule is VaultBase {
     function collectBorrowFee(bytes32 _key) internal returns(uint userBorrowDebt) {
         userBorrowDebt = preCalculateUserBorrowDebt(_key);
         if(userBorrowDebt > 0){
+            uint _halfBorrowDebt = userBorrowDebt / 2;
             uint _sharePoolDecrease = userBorrowDebt * borrowPool / totalBorrows;
             positions[_key].borrowed -= _sharePoolDecrease; 
             borrowPool -= _sharePoolDecrease;
             totalBorrows -= userBorrowDebt;
-            poolAmount += userBorrowDebt;
+            poolAmount += _halfBorrowDebt;
+            feeReserves += userBorrowDebt - _halfBorrowDebt;
         }
     }
 
     function borrowMarginRedeem(bytes32 _key, uint _margin) internal {
         uint _sharePoolDecrease = _margin * borrowPool / totalBorrows;
-        if(shouldValidatePoolShares) 
-        validatePoolShares(totalBorrows, _margin, borrowPool, _sharePoolDecrease, positions[_key].borrowed);
-        _sharePoolDecrease >= positions[_key].borrowed ? 
-        positions[_key].borrowed = 0 : positions[_key].borrowed -= _sharePoolDecrease;
+        Position storage position = positions[_key];
+        if(shouldValidatePoolShares) validatePoolShares(totalBorrows, _margin, borrowPool, _sharePoolDecrease, position.borrowed);
+        _sharePoolDecrease >= position.borrowed ? 
+        position.borrowed = 0 : position.borrowed -= _sharePoolDecrease;
         _sharePoolDecrease >= borrowPool ? 
         borrowPool = Math.INIT_LOCK_AMOUNT : borrowPool -= _sharePoolDecrease;
         _margin >= totalBorrows ? 

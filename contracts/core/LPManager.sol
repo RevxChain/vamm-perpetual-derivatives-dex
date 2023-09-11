@@ -38,7 +38,8 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
     function initialize(
         address _vault, 
         address _stable,
-        address _positionsTracker
+        address _positionsTracker,
+        address _controller
     ) external onlyHandler(gov) {  
         require(!isInitialized, "LPManager: initialized");
         isInitialized = true;
@@ -46,10 +47,11 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         vault = _vault;
         stable = _stable;
         positionsTracker = _positionsTracker;
+        controller = _controller;
 
         baseRemoveFee = 20;
         baseProviderFee = 40;
-        profitProviderFee = 800;
+        profitProviderFee = 80;
         lockDuration = 10 minutes;
     }
 
@@ -71,6 +73,10 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
     function setLockDuration(uint _lockDuration) external onlyHandler(dao) {
         require(MAX_LOCK_DURATION >= _lockDuration, "LPManager: invalid lockDuration");
         lockDuration = _lockDuration;
+    }
+
+    function withdrawFees() external onlyHandler(controller) {
+        IERC20(stable).safeTransfer(msg.sender, feeReserves);
     }
 
     function addLiquidity(uint _underlyingAmount) external nonReentrant() {
@@ -116,6 +122,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
     }
     
     function collectAddFees(uint _amount) internal returns(uint) {
+        if(msg.sender == controller) return _amount;
         (bool _isActual, bool _hasProfit, uint _totalDelta) = IPositionsTracker(positionsTracker).getPositionsData();
         uint _baseFee = baseProviderFee;
         uint _profitFee;

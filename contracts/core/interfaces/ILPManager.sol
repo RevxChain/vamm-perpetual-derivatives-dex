@@ -6,6 +6,9 @@ interface ILPManager {
     function vault() external view returns(address);
     function stable() external view returns(address);
     function positionsTracker() external view returns(address);
+    function feeReserves() external view returns(uint); 
+
+    function withdrawFees() external;
 
     function addLiquidity(uint _underlyingAmount) external;
 
