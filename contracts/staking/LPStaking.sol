@@ -147,8 +147,8 @@ contract LPStaking is Governable, ReentrancyGuard {
         require(IERC20(rewardToken).balanceOf(_user) >= _extraAmount, "LPStaking: invalid balance");
         pool += _amount;
         extraRewardPool += _extraAmount;
-        IERC20(lpManager).safeTransferFrom(_user, address(this), _amount);
-        IERC20(rewardToken).safeTransferFrom(_user, address(this), _extraAmount);
+        if(_amount > 0) IERC20(lpManager).safeTransferFrom(_user, address(this), _amount);
+        if(_extraAmount > 0) IERC20(rewardToken).safeTransferFrom(_user, address(this), _extraAmount);
     }
 
     function preUpdateInitShares() public view returns(uint) {

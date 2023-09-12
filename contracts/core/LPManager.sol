@@ -79,37 +79,36 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         IERC20(stable).safeTransfer(msg.sender, feeReserves);
     }
 
-    function addLiquidity(uint _underlyingAmount) external nonReentrant() {
+    function addLiquidity(uint _underlyingAmount) external nonReentrant() returns(uint lpAmount) {
         validateAmount(_underlyingAmount);
         address _user = msg.sender;
        
         _underlyingAmount = collectAddFees(_underlyingAmount);
         uint _amount = _underlyingAmount.stableToPrecision();
-
-        uint _userShare; 
+ 
         if(totalSupply() > 0){
-            _userShare = _amount * totalSupply() / IVault(vault).poolAmount();
+            lpAmount = _amount * totalSupply() / IVault(vault).poolAmount();
         } else {
-            _userShare = _amount.sqrt();
+            lpAmount = _amount.sqrt();
             _mint(vault, Math.INIT_LOCK_AMOUNT);
         }
-        _mint(_user, _userShare);
+        _mint(_user, lpAmount);
         lastAdded[_user] = block.timestamp;
 
         IVault(vault).increasePool(_amount);
         IERC20(stable).safeTransferFrom(_user, vault, _underlyingAmount);
     }
 
-    function removeLiquidity(uint _sTokenAmount) external nonReentrant() {
+    function removeLiquidity(uint _sTokenAmount) external nonReentrant() returns(uint underlyingAmount) {
         address _user = msg.sender;
         require(block.timestamp >= lastAdded[_user] + lockDuration, "LPManager: liquidity locked");
         validateAmount(_sTokenAmount);
 
-        uint _underlyingAmount = collectRemoveFees(calculateUnderlying(_sTokenAmount));
+        underlyingAmount = collectRemoveFees(calculateUnderlying(_sTokenAmount));
 
         _burn(_user, _sTokenAmount);
  
-        IVault(vault).decreasePool(_user, _underlyingAmount.stableToPrecision(), _underlyingAmount);
+        IVault(vault).decreasePool(_user, underlyingAmount.stableToPrecision(), underlyingAmount);
     }
 
     function calculateUnderlying(uint _sTokenAmount) public view returns(uint underlyingAmount) {

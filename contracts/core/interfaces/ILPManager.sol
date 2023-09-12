@@ -10,9 +10,9 @@ interface ILPManager {
 
     function withdrawFees() external;
 
-    function addLiquidity(uint _underlyingAmount) external;
+    function addLiquidity(uint _underlyingAmount) external returns(uint lpAmount);
 
-    function removeLiquidity(uint _sTokenAmount) external;
+    function removeLiquidity(uint _sTokenAmount) external returns(uint underlyingAmount);
 
     function calculateUnderlying(uint _sTokenAmount) external view returns(uint underlyingAmount);
 

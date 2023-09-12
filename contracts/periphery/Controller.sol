@@ -141,8 +141,7 @@ contract Controller is Governable, ReentrancyGuard {
         address _stable = ILPManager(LPManager).stable();
         uint _amount = IERC20(_stable).balanceOf(address(this));
         IERC20(_stable).approve(LPManager, _amount);
-        ILPManager(LPManager).addLiquidity(_amount);
-        _amount = IERC20(LPManager).balanceOf(address(this));
+        _amount = ILPManager(LPManager).addLiquidity(_amount);
         IERC20(LPManager).approve(LPStaking, _amount);
         IERC20(govToken).approve(LPStaking, _extraRewardAmount);
         ILPStaking(LPStaking).addRewards(_amount, _extraRewardAmount);
