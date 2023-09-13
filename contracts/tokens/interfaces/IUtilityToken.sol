@@ -10,11 +10,18 @@ interface IUtilityToken is IERC721 {
 
     function mint(address[] calldata _user, uint[] calldata _typeId) external;
 
+    function getUtility(uint _tokenId) external view returns(
+        uint maxLeverage, 
+        bool operatingFee, 
+        bool liquidator, 
+        uint votePower
+    );
+
     function setTypeData( 
         string calldata _grade, 
         uint _maxTotalSupply, 
         uint _maxLeverage, 
-        uint _operatingFee, 
+        bool _operatingFee, 
         bool _liquidator, 
         uint _votePower
     ) external;
@@ -22,7 +29,7 @@ interface IUtilityToken is IERC721 {
     function updateTypeData(
         uint _typeId,  
         uint _maxLeverage, 
-        uint _operatingFee, 
+        bool _operatingFee, 
         bool _liquidator, 
         uint _votePower
     ) external;

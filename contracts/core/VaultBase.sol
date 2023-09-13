@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
+import "../staking/interfaces/IUtilityStorage.sol";
 import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
 
@@ -23,6 +24,7 @@ contract VaultBase is Governable {
     address public priceFeed;
     address public positionsTracker;
     address public marketRouter;
+    address public utilityStorage;
 
     bool public isInitialized;
     bool public shouldValidatePoolShares;
@@ -73,10 +75,14 @@ contract VaultBase is Governable {
         return keccak256(abi.encodePacked(_user, _indexToken, _long));
     }
 
-    function validateLeverage(uint _size, uint _collateral) internal view {
+    function validateLeverage(uint _size, uint _collateral, address _user) internal view {
         uint _usedLeverage = _size * Math.PRECISION  / _collateral; 
+
+        (bool _staker, uint _maxLeverage, , , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
+        if(!_staker) _maxLeverage = baseMaxLeverage;
+
         validate(_usedLeverage >= MIN_LEVERAGE, 23);
-        validate(baseMaxLeverage >= _usedLeverage, 24);
+        validate(_maxLeverage >= _usedLeverage, 24);
     }
 
     function validateLastUpdateTime(uint _lastUpdateTime) internal view {

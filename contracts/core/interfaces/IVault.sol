@@ -9,6 +9,7 @@ interface IVault {
     function priceFeed() external view returns(address);
     function positionsTracker() external view returns(address);
     function marketRouter() external view returns(address);
+    function utilityStorage() external view returns(address);
 
     function shouldValidatePoolShares() external view returns(bool);
 
@@ -110,7 +111,7 @@ interface IVault {
 
     function decreasePool(
         address _user, 
-        uint _stableAmount, 
+        uint _amount, 
         uint _underlyingAmount
     ) external;
 

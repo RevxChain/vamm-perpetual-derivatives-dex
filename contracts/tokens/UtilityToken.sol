@@ -8,6 +8,7 @@ import "../libraries/Governable.sol";
 
 contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
 
+    uint public constant TOTAL_TYPES = 3;
     uint public constant MAX_TOTAL_SUPPLY = 3000;
     uint public constant ONE_YEAR = 52 weeks;
 
@@ -25,7 +26,7 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         uint totalSupply;
         uint maxTotalSupply;
         uint maxLeverage;
-        uint operatingFee;
+        bool operatingFee;
         bool liquidator;
         uint votePower;
         uint lastUpdated;
@@ -53,10 +54,11 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         string calldata _grade, 
         uint _maxTotalSupply, 
         uint _maxLeverage, 
-        uint _operatingFee, 
+        bool _operatingFee, 
         bool _liquidator, 
         uint _votePower
-    ) external onlyHandler(controller) {
+    ) external onlyHandler(gov) {
+        require(TOTAL_TYPES > totalTypes, "UtilityToken: ");
         utilities[totalTypes] = Utility({
             grade: _grade,
             totalSupply: 0,
@@ -74,7 +76,7 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
     function updateTypeData(
         uint _typeId,  
         uint _maxLeverage, 
-        uint _operatingFee, 
+        bool _operatingFee, 
         bool _liquidator, 
         uint _votePower
     ) external onlyHandler(dao) {
@@ -86,6 +88,12 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         utility.liquidator = _liquidator;
         utility.votePower = _votePower;
         utility.lastUpdated = block.timestamp;
+    }
+
+    function getUtility(uint _tokenId) external view returns(uint, bool, bool, uint) {
+        uint _typeId = typeId[_tokenId];
+        Utility memory utility = utilities[_typeId];
+        return (utility.maxLeverage, utility.operatingFee, utility.liquidator, utility.votePower);
     }
 
     function _mintInternal(address _user, uint _typeId) internal {

@@ -63,13 +63,14 @@ contract PriceFeed is Governable, ReentrancyGuard {
         uint _priceDecimals,
         address _ammPool,
         uint _poolDecimals
-    ) external onlyHandler(controller) whitelisted(_indexToken, false) {
-        Config storage config = configs[_indexToken]; 
+    ) external onlyHandler(controller) whitelisted(_indexToken, false) { 
         validatePoolAddress(_indexToken, _ammPool);
-        config.priceFeed = _priceFeed;
-        config.priceDecimals = _priceDecimals;
-        config.ammPool = _ammPool;
-        config.poolDecimals = _poolDecimals;
+        configs[_indexToken] = Config({
+            priceFeed: _priceFeed,
+            priceDecimals: _priceDecimals,
+            ammPool: _ammPool,
+            poolDecimals: _poolDecimals
+        });
         whitelistedToken[_indexToken] = true;
     }
 

@@ -204,24 +204,26 @@ contract FastPriceFeed is Governable {
         uint _refPrice,
         uint _maxDelta,
         uint _maxCumulativeDelta
-    ) external onlyHandler(controller) whitelisted(_indexToken, false) {
-        PriceData storage data = priceData[_indexToken]; 
+    ) external onlyHandler(controller) whitelisted(_indexToken, false) { 
         whitelistedToken[_indexToken] = true;
         require(_price > 0 && _refPrice > 0, "FastPriceFeed: invalid price");
         uint _delta = calculateDelta(_price, _refPrice);
 
         validateDelta(_maxDelta, _delta, _maxCumulativeDelta, _delta);
-        whitelistedTokensCount += 1;
+        whitelistedTokensCount += 1; 
 
-        data.price = _price;
-        data.prevPrice = _price;
-        data.refPrice = _refPrice;
-        data.prevRefPrice = _refPrice;
-        data.delta = _delta;
-        data.maxDelta = _maxDelta;
-        data.cumulativeDelta = _delta;
-        data.maxCumulativeDelta = _maxCumulativeDelta;
-        data.lastUpdate = block.timestamp;  
+        priceData[_indexToken] = PriceData({
+            price: _price,
+            prevPrice: _price,
+            refPrice: _refPrice,
+            prevRefPrice: _refPrice,
+            delta: _delta,
+            maxDelta: _maxDelta,
+            cumulativeDelta: _delta,
+            maxCumulativeDelta: _maxCumulativeDelta,
+            lastUpdate: block.timestamp,
+            denials: 0
+        });
     }
 
     function deleteTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, true) {

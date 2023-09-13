@@ -16,6 +16,8 @@ contract Vault is FundingModule, ReentrancyGuard {
     uint public maxOperatingFeePriceDeviation;
     uint public operatingFeePriceMultiplier;
 
+    bool public zeroOperatingFee;
+
     function initialize(
         address _stable,
         address _VAMM,
@@ -23,7 +25,8 @@ contract Vault is FundingModule, ReentrancyGuard {
         address _priceFeed,
         address _positionsTracker,
         address _marketRouter,
-        address _controller
+        address _controller,
+        address _utilityStorage
     ) external onlyHandler(gov) validateAddress(_controller) {   
         validate(!isInitialized, 1);
         isInitialized = true;
@@ -35,6 +38,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         positionsTracker = _positionsTracker;
         marketRouter = _marketRouter;
         controller = _controller;
+        utilityStorage = _utilityStorage;
 
         shouldValidatePoolShares = true;
         lastUpdateTotalBorrows = block.timestamp;
@@ -90,10 +94,10 @@ contract Vault is FundingModule, ReentrancyGuard {
 
     function decreasePool(
         address _user, 
-        uint _stableAmount, 
+        uint _amount, 
         uint _underlyingAmount
     ) external onlyHandler(LPManager) {
-        poolAmount -= _stableAmount;
+        poolAmount -= _amount;
 
         IERC20(stable).safeTransfer(_user, _underlyingAmount);
     }
@@ -116,7 +120,8 @@ contract Vault is FundingModule, ReentrancyGuard {
         validate(whitelistedToken[_indexToken], 0);
         updateTotalBorrows();
         updateTotalFunding(_indexToken);
-
+        setUserUtility(_user);
+        
         bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
         Position storage position = positions[_key]; 
 
@@ -156,8 +161,10 @@ contract Vault is FundingModule, ReentrancyGuard {
         position.entryPrice = position.size * Math.ACCURACY / _assetAmount;
         position.lastUpdateTime = block.timestamp;
 
-        validateLeverage(position.size, position.collateral);
+        validateLeverage(position.size, position.collateral, _user);
         validateLiquidatable(_user, _indexToken, _long, false);
+
+        if(zeroOperatingFee) utilityDecreaseOperationFee(false);
     }
 
     function addCollateral(
@@ -192,7 +199,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         position.collateral = _collateralNext;
         position.lastUpdateTime = block.timestamp;
 
-        validateLeverage(position.size, position.collateral);
+        validateLeverage(position.size, position.collateral, _user);
     }
 
     function decreasePosition(
@@ -206,6 +213,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         validate(whitelistedToken[_indexToken], 0);
         updateTotalBorrows();
         updateTotalFunding(_indexToken);
+        setUserUtility(_user);
 
         bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
         Position storage position = positions[_key];
@@ -238,9 +246,11 @@ contract Vault is FundingModule, ReentrancyGuard {
         );
         
         if(position.size > 0) {
-            validateLeverage(position.size, position.collateral);
+            validateLeverage(position.size, position.collateral, _user);
             validateLiquidatable(_user, _indexToken, _long, false);
         }
+
+        if(zeroOperatingFee) utilityDecreaseOperationFee(false);
     }
 
     function withdrawCollateral(
@@ -275,7 +285,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         _collateralDelta = _collateralDelta.precisionToStable();
         IERC20(stable).safeTransfer(_user, _collateralDelta);
         
-        validateLeverage(position.size, position.collateral);
+        validateLeverage(position.size, position.collateral, _user);
         validateLiquidatable(_user, _indexToken, _long, false);
     }
 
@@ -324,6 +334,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         validate(whitelistedToken[_indexToken], 0);
         updateTotalBorrows();
         updateTotalFunding(_indexToken);
+        setUserUtility(_user);
 
         bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
         Position memory position = positions[_key];
@@ -378,6 +389,8 @@ contract Vault is FundingModule, ReentrancyGuard {
         IERC20(stable).safeTransfer(_feeReceiver, _remainingLiquidationFee);
 
         delete positions[_key];
+
+        if(zeroOperatingFee) utilityDecreaseOperationFee(false);
     }
 
     function validateLiquidate(
@@ -448,6 +461,7 @@ contract Vault is FundingModule, ReentrancyGuard {
     }
 
     function calculateOperatingFee(address _indexToken, bool _long, bool _increase) public view returns(uint) {
+        if(zeroOperatingFee) return 0;
         uint _vammPrice = IVAMM(VAMM).getPrice(_indexToken);
         uint _feedPrice = IPriceFeed(priceFeed).getPrice(_indexToken);
         uint _priceDelta = _vammPrice > _feedPrice ? _vammPrice - _feedPrice : _feedPrice - _vammPrice;
@@ -497,12 +511,19 @@ contract Vault is FundingModule, ReentrancyGuard {
     ) internal view returns(uint fees, uint delta) {
         bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
         Position memory position = positions[_key];
-        fees = preCalculateUserBorrowDebt(_key) + calculateOperationFeeAmount(_indexToken, position.size, _long, false);
+        fees = preCalculateUserBorrowDebt(_key);
+
+        (bool _staker, bool _operatingFee) = checkUserUtility(_user);
+        if(!_staker || !_operatingFee) fees += calculateOperationFeeAmount(_indexToken, position.size, _long, false);
 
         bool _hasProfit;
         (delta, _hasProfit, ,) = preCalculateUserFundingFee(_user, _indexToken, _long);
 
         (fees, delta) = calculateFeesAndDelta(_hasProfit, fees, delta);
+    }
+
+    function checkUserUtility(address _user) internal view returns(bool staker, bool operatingFee) {
+        (staker, , operatingFee, , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
     }
 
     function collectOperatingFee(
@@ -513,6 +534,15 @@ contract Vault is FundingModule, ReentrancyGuard {
     ) internal returns(uint operatingFeeAmount) {
         operatingFeeAmount = calculateOperationFeeAmount(_indexToken, _sizeDelta, _long, _increase);
         poolAmount += operatingFeeAmount;
+    }
+
+    function setUserUtility(address _user) internal {
+        (bool _staker, bool _operatingFee) = checkUserUtility(_user);
+        if(_staker && _operatingFee) utilityDecreaseOperationFee(true);
+    }
+
+    function utilityDecreaseOperationFee(bool _zeroFee) internal {
+        zeroOperatingFee = _zeroFee;
     }
 
     function _decreasePosition(
