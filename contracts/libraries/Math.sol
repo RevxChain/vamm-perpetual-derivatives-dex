@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 library Math {
+    
     uint internal constant INIT_LOCK_AMOUNT = 1;
     uint internal constant DENOMINATOR = 1000;
     uint internal constant PRECISION = 10000;

@@ -4,7 +4,7 @@ pragma solidity 0.8.19;
 import "./VaultBase.sol";
 
 contract BorrowingModule is VaultBase {
-
+    
     uint public constant MAX_BASE_BORROW_RATE_PER_YEAR = 5e16; 
     uint public constant MAX_EXTRA_BORROW_RATE_PER_YEAR = 10e16; 
     

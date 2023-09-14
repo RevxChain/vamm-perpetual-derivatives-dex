@@ -71,23 +71,18 @@ contract OrderBook is Governable, ReentrancyGuard {
         address _vault,
         address _VAMM,
         address _stable,
-        address _controller,
-        uint _minExecutionFee,
-        uint _minOrderWorth
+        address _controller
     ) external onlyHandler(gov) validateAddress(_controller) {  
         require(!isInitialized, "OrderBook: initialized");
         isInitialized = true;
-
-        require(_minExecutionFee >= MIN_EXECUTION_FEE, "OrderBook: minExecutionFee underflow");
-        require(_minOrderWorth >= MIN_ORDER_WORTH, "OrderBook: minOrderWorth underflow");
 
         vault = _vault;
         VAMM = _VAMM;
         stable = _stable;
         controller = _controller;
 
-        minExecutionFee = _minExecutionFee;
-        minOrderWorth = _minOrderWorth;
+        minExecutionFee = 3e15;
+        minOrderWorth = 10e18;
         executePrivateMode = true;
     }
 

@@ -6,6 +6,7 @@ import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
 
 contract VaultBase is Governable { 
+    
     uint public constant MIN_LEVERAGE = 11000; 
     uint public constant MIN_LIQUIDATION_FEE = 5e18; 
     uint public constant MAX_LIQUIDATION_FEE = 50e18; 

@@ -397,11 +397,9 @@ contract Vault is FlashLoanModule {
         bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
         Position memory position = positions[_key];
 
-        if(position.size == 0) return (0, false);
+        if(position.size == 0) return (0, false); 
 
-        uint _collateral = position.collateral;
-        uint _markPrice = IVAMM(VAMM).getPrice(_indexToken); 
-
+        (uint _collateral, uint _markPrice) = (position.collateral, IVAMM(VAMM).getPrice(_indexToken));
         (uint _fees, uint _delta) = calculateFees(_user, _indexToken, _long);
 
         if(_collateral + _delta > _fees){
@@ -427,9 +425,8 @@ contract Vault is FlashLoanModule {
         bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
         Position memory position = positions[_key];
         if(position.size == 0) return (false, 0);
-        uint _markPrice = IVAMM(VAMM).getPrice(_indexToken);
-        uint _entryPrice = position.entryPrice;
-
+        
+        (uint _markPrice, uint _entryPrice) = (IVAMM(VAMM).getPrice(_indexToken), position.entryPrice);
         (uint _fees, uint _delta) = calculateFees(_user, _indexToken, _long);
 
         delta = position.size * getPriceDelta(_entryPrice, _markPrice) / _entryPrice;
@@ -469,7 +466,7 @@ contract Vault is FlashLoanModule {
         return baseOperatingFee;
     }
 
-    function validateLiquidatable(address _user, address _indexToken, bool _long, bool _bool) internal view {
+    function validateLiquidatable(address _user, address _indexToken, bool _long, bool _bool) public view {
         (, bool _liquidatable) = validateLiquidate(_user, _indexToken, _long);
         validate(_liquidatable == _bool, 22);
     }
