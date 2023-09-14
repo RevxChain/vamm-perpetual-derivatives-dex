@@ -391,8 +391,8 @@ contract OrderBook is Governable, ReentrancyGuard {
     }
 
     function safeTransfer(address payable _receiver, uint _value) internal {
-        (bool success, ) = _receiver.call{value: _value}(new bytes(0));
-        require(success, "OrderBook: ETH transfer failed");
+        (bool _success, ) = _receiver.call{value: _value}(new bytes(0));
+        require(_success, "OrderBook: ETH transfer failed");
     }
 
     function validatePositionOrderPrice(

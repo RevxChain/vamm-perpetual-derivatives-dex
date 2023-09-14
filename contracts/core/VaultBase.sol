@@ -78,7 +78,7 @@ contract VaultBase is Governable {
     function validateLeverage(uint _size, uint _collateral, address _user) internal view {
         uint _usedLeverage = _size * Math.PRECISION  / _collateral; 
 
-        (bool _staker, uint _maxLeverage, , , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
+        (bool _staker, uint _maxLeverage, , , , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
         if(!_staker) _maxLeverage = baseMaxLeverage;
 
         validate(_usedLeverage >= MIN_LEVERAGE, 23);
@@ -125,4 +125,8 @@ contract VaultBase is Governable {
 
         return (_fees, _delta);
     }  
+
+    function getPriceDelta(uint _price, uint _refPrice) internal pure returns(uint delta) {
+        return _price > _refPrice ? _price - _refPrice : _refPrice - _price;
+    }
 }

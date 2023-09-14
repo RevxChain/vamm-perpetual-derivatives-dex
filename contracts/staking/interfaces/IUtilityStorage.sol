@@ -17,7 +17,8 @@ interface IUtilityStorage {
         uint maxLeverage, 
         bool operatingFee, 
         bool liquidator, 
-        uint votePower
+        uint votePower,
+        uint flashLoanFee
     );
     
 }

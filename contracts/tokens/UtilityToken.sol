@@ -29,12 +29,16 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         bool operatingFee;
         bool liquidator;
         uint votePower;
+        uint flashLoanFee;
         uint lastUpdated;
     }
 
     constructor() ERC721("UtilityToken", "Utility") {}
 
-    function initialize(address _controller, string calldata baseURI_) external onlyHandler(gov) {   
+    function initialize(
+        address _controller, 
+        string calldata baseURI_
+    ) external onlyHandler(gov) validateAddress(_controller) {   
         require(!isInitialized, "UtilityToken: initialized");
         isInitialized = true;
 
@@ -56,9 +60,10 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         uint _maxLeverage, 
         bool _operatingFee, 
         bool _liquidator, 
-        uint _votePower
+        uint _votePower,
+        uint _flashLoanFee
     ) external onlyHandler(gov) {
-        require(TOTAL_TYPES > totalTypes, "UtilityToken: ");
+        require(TOTAL_TYPES > totalTypes, "UtilityToken: total types exceeded");
         utilities[totalTypes] = Utility({
             grade: _grade,
             totalSupply: 0,
@@ -67,6 +72,7 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
             operatingFee: _operatingFee,
             liquidator: _liquidator,
             votePower: _votePower,
+            flashLoanFee: _flashLoanFee,
             lastUpdated: block.timestamp
         });
 
@@ -78,7 +84,8 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         uint _maxLeverage, 
         bool _operatingFee, 
         bool _liquidator, 
-        uint _votePower
+        uint _votePower,
+        uint _flashLoanFee
     ) external onlyHandler(dao) {
         Utility storage utility = utilities[_typeId];
         require(totalTypes > _typeId, "UtilityToken: invalid type Id");
@@ -87,13 +94,20 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         utility.operatingFee =_operatingFee;
         utility.liquidator = _liquidator;
         utility.votePower = _votePower;
+        utility.flashLoanFee = _flashLoanFee;
         utility.lastUpdated = block.timestamp;
     }
 
-    function getUtility(uint _tokenId) external view returns(uint, bool, bool, uint) {
+    function getUtility(uint _tokenId) external view returns(uint, bool, bool, uint, uint) {
         uint _typeId = typeId[_tokenId];
         Utility memory utility = utilities[_typeId];
-        return (utility.maxLeverage, utility.operatingFee, utility.liquidator, utility.votePower);
+        return (
+            utility.maxLeverage, 
+            utility.operatingFee, 
+            utility.liquidator, 
+            utility.votePower, 
+            utility.flashLoanFee
+        );
     }
 
     function _mintInternal(address _user, uint _typeId) internal {

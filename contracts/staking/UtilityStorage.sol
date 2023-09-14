@@ -41,7 +41,7 @@ contract UtilityStorage is ERC721Holder, Governable, ReentrancyGuard {
         Stake storage stake = staked[_tokenId]; 
         validateOwnership(_user, _tokenId, _lockDuration, true);
         
-        (, , bool _liquidator, ) = IUtilityToken(utilityToken).getUtility(_tokenId);
+        (, , bool _liquidator, , ) = IUtilityToken(utilityToken).getUtility(_tokenId);
         if(_liquidator) IMarketRouter(marketRouter).setLiquidatorUtility(_user, true);
 
         owners[_user] = _tokenId;
@@ -56,7 +56,7 @@ contract UtilityStorage is ERC721Holder, Governable, ReentrancyGuard {
         address _user = msg.sender; 
         validateOwnership(_user, _tokenId, 0, false);
 
-        (, , bool _liquidator, ) = IUtilityToken(utilityToken).getUtility(_tokenId);
+        (, , bool _liquidator, , ) = IUtilityToken(utilityToken).getUtility(_tokenId);
         if(_liquidator) IMarketRouter(marketRouter).setLiquidatorUtility(_user, false);
 
         IERC721(utilityToken).safeTransferFrom(address(this), _receiver, _tokenId);
@@ -70,13 +70,14 @@ contract UtilityStorage is ERC721Holder, Governable, ReentrancyGuard {
         uint maxLeverage, 
         bool operatingFee, 
         bool liquidator, 
-        uint votePower
+        uint votePower,
+        uint flashLoanFee
     ) {
         uint _tokenId = owners[_user];
-        if(staked[_tokenId].owner != _user) return(false, 0, false, false, 0);
+        if(staked[_tokenId].owner != _user) return(false, 0, false, false, 0, 0);
         staker = true;
 
-        (maxLeverage, operatingFee, liquidator, votePower) = IUtilityToken(utilityToken).getUtility(_tokenId);
+        (maxLeverage, operatingFee, liquidator, votePower, flashLoanFee) = IUtilityToken(utilityToken).getUtility(_tokenId);
     }
 
     function validateOwnership(address _user, uint _tokenId, uint _lock, bool _deposit) internal view {

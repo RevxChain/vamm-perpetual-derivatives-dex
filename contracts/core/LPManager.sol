@@ -77,6 +77,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
 
     function withdrawFees() external onlyHandler(controller) {
         IERC20(stable).safeTransfer(msg.sender, feeReserves);
+        feeReserves = 0;
     }
 
     function addLiquidity(uint _underlyingAmount) external nonReentrant() returns(uint lpAmount) {
@@ -123,8 +124,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
     function collectAddFees(uint _amount) internal returns(uint) {
         if(msg.sender == controller) return _amount;
         (bool _isActual, bool _hasProfit, uint _totalDelta) = IPositionsTracker(positionsTracker).getPositionsData();
-        uint _baseFee = baseProviderFee;
-        uint _profitFee;
+        (uint _baseFee, uint _profitFee) = (baseProviderFee, 0);
         if(_isActual){
             if(_hasProfit){
                 _baseFee = _totalDelta / 10 > _baseFee ? 0 : _baseFee;
@@ -146,9 +146,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
 
     function collectRemoveFees(uint _amount) internal returns(uint) {
         (bool _isActual, bool _hasProfit, uint _totalDelta) = IPositionsTracker(positionsTracker).getPositionsData();
-        uint _baseFee = baseProviderFee;
-        uint _profitFee = baseRemoveFee;
-        uint _removeFee;
+        (uint _baseFee, uint _profitFee, uint _removeFee) = (baseProviderFee, baseRemoveFee, 0);
         if(_isActual){
             if(_hasProfit){
                 _baseFee = _totalDelta / 10 > MAX_PROFIT_PROVIDER_FEE ? _baseFee : MAX_PROFIT_PROVIDER_FEE;

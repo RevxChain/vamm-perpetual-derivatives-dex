@@ -45,8 +45,7 @@ contract FundingModule is BorrowingModule {
         if(block.timestamp - _updateTime > 0){
             uint _vammPrice = IVAMM(VAMM).getPrice(_indexToken);
             uint _feedPrice = IPriceFeed(priceFeed).getPrice(_indexToken);
-            uint _priceDelta = _vammPrice > _feedPrice ? _vammPrice - _feedPrice : _feedPrice - _vammPrice;
-            uint _fundingFeeRate = (_priceDelta * Math.ACCURACY / _vammPrice) * fundingPriceMultiplier / Math.PRECISION; 
+            uint _fundingFeeRate = (getPriceDelta(_vammPrice, _feedPrice) * Math.ACCURACY / _vammPrice) * fundingPriceMultiplier / Math.PRECISION; 
             uint _totalFundingIncrease;
 
             if(_vammPrice > _feedPrice){
@@ -99,14 +98,15 @@ contract FundingModule is BorrowingModule {
     }
 
     function setFundingTokenConfig(address _indexToken) internal {     
-        Funding storage funding = fundings[_indexToken];
-        funding.totalLongFunding = Math.INIT_LOCK_AMOUNT; 
-        funding.totalShortFunding = Math.INIT_LOCK_AMOUNT;  
-        funding.fundingLongSharePool = Math.INIT_LOCK_AMOUNT;
-        funding.fundingShortSharePool = Math.INIT_LOCK_AMOUNT;
-        funding.fundingLongFeeAmount = Math.INIT_LOCK_AMOUNT;
-        funding.fundingShortFeeAmount = Math.INIT_LOCK_AMOUNT;
-        funding.lastFundingUpdateTime = block.timestamp;
+        fundings[_indexToken] = Funding({
+            totalLongFunding: Math.INIT_LOCK_AMOUNT,
+            totalShortFunding: Math.INIT_LOCK_AMOUNT,
+            fundingLongSharePool: Math.INIT_LOCK_AMOUNT,
+            fundingShortSharePool: Math.INIT_LOCK_AMOUNT,
+            fundingLongFeeAmount: Math.INIT_LOCK_AMOUNT,
+            fundingShortFeeAmount: Math.INIT_LOCK_AMOUNT,
+            lastFundingUpdateTime: block.timestamp
+        });
     }
 
     function deleteFundingTokenConfig(address _indexToken) internal {     

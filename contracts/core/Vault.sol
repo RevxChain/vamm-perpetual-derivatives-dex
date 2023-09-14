@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./FlashLoanModule.sol";
 
-import "./FundingModule.sol";
-
-contract Vault is FundingModule, ReentrancyGuard {
+contract Vault is FlashLoanModule {
     using SafeERC20 for IERC20;
     using Math for uint;
 
@@ -55,6 +52,9 @@ contract Vault is FundingModule, ReentrancyGuard {
         utilizationRateKink = 1500;
         minChangeTime = 30;
         fundingPriceMultiplier = 5000;
+        minAmountToLoan = 1e6;
+        baseLoanFee = 30;
+        flashLoanEnabled = true;
     }
 
     function setTokenConfig(address _indexToken) external onlyHandler(controller) {   
@@ -82,10 +82,6 @@ contract Vault is FundingModule, ReentrancyGuard {
     function setOperatingFeePriceMultiplier(uint _operatingFeePriceMultiplier) external onlyHandler(dao) {
         validate(Math.PRECISION >= _operatingFeePriceMultiplier, 7);
         operatingFeePriceMultiplier = _operatingFeePriceMultiplier;
-    }
-
-    function withdrawFees() external onlyHandler(controller) {
-        IERC20(stable).safeTransfer(msg.sender, feeReserves.precisionToStable());
     }
 
     function increasePool(uint _amount) external onlyHandler(LPManager) {
@@ -245,7 +241,7 @@ contract Vault is FundingModule, ReentrancyGuard {
             _hasProfit
         );
         
-        if(position.size > 0) {
+        if(position.size > 0){
             validateLeverage(position.size, position.collateral, _user);
             validateLiquidatable(_user, _indexToken, _long, false);
         }
@@ -433,11 +429,10 @@ contract Vault is FundingModule, ReentrancyGuard {
         if(position.size == 0) return (false, 0);
         uint _markPrice = IVAMM(VAMM).getPrice(_indexToken);
         uint _entryPrice = position.entryPrice;
-        uint _priceDelta = _entryPrice > _markPrice ? _entryPrice - _markPrice : _markPrice - _entryPrice;
 
         (uint _fees, uint _delta) = calculateFees(_user, _indexToken, _long);
 
-        delta = position.size * _priceDelta / _entryPrice;
+        delta = position.size * getPriceDelta(_entryPrice, _markPrice) / _entryPrice;
         hasProfit = _long ? _markPrice > _entryPrice : _entryPrice > _markPrice;
         if(hasProfit){
             if(delta + _delta > _fees){
@@ -464,8 +459,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         if(zeroOperatingFee) return 0;
         uint _vammPrice = IVAMM(VAMM).getPrice(_indexToken);
         uint _feedPrice = IPriceFeed(priceFeed).getPrice(_indexToken);
-        uint _priceDelta = _vammPrice > _feedPrice ? _vammPrice - _feedPrice : _feedPrice - _vammPrice;
-        _priceDelta = _priceDelta * Math.PRECISION / _vammPrice;
+        uint _priceDelta = getPriceDelta(_vammPrice, _feedPrice) * Math.PRECISION / _vammPrice;
         if(_vammPrice > _feedPrice){
             if(_increase && _long || !_increase && !_long) return calculateOperatingFeeInternal(_priceDelta);
         }
@@ -475,7 +469,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         return baseOperatingFee;
     }
 
-    function validateLiquidatable(address _user, address _indexToken, bool _long, bool _bool) public view {
+    function validateLiquidatable(address _user, address _indexToken, bool _long, bool _bool) internal view {
         (, bool _liquidatable) = validateLiquidate(_user, _indexToken, _long);
         validate(_liquidatable == _bool, 22);
     }
@@ -513,17 +507,13 @@ contract Vault is FundingModule, ReentrancyGuard {
         Position memory position = positions[_key];
         fees = preCalculateUserBorrowDebt(_key);
 
-        (bool _staker, bool _operatingFee) = checkUserUtility(_user);
+        (bool _staker, , bool _operatingFee, , , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
         if(!_staker || !_operatingFee) fees += calculateOperationFeeAmount(_indexToken, position.size, _long, false);
 
         bool _hasProfit;
         (delta, _hasProfit, ,) = preCalculateUserFundingFee(_user, _indexToken, _long);
 
         (fees, delta) = calculateFeesAndDelta(_hasProfit, fees, delta);
-    }
-
-    function checkUserUtility(address _user) internal view returns(bool staker, bool operatingFee) {
-        (staker, , operatingFee, , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
     }
 
     function collectOperatingFee(
@@ -537,7 +527,7 @@ contract Vault is FundingModule, ReentrancyGuard {
     }
 
     function setUserUtility(address _user) internal {
-        (bool _staker, bool _operatingFee) = checkUserUtility(_user);
+        (bool _staker, , bool _operatingFee, , , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
         if(_staker && _operatingFee) utilityDecreaseOperationFee(true);
     }
 
@@ -560,7 +550,7 @@ contract Vault is FundingModule, ReentrancyGuard {
         _collateralDelta = position.size == _sizeDelta ? position.collateral : _collateralDelta; 
         validate(position.collateral >= _collateralDelta, 29);
         
-        uint _priceDelta = position.entryPrice > _markPrice ? position.entryPrice - _markPrice : _markPrice - position.entryPrice; 
+        uint _priceDelta = getPriceDelta(position.entryPrice, _markPrice);
         uint _sizeNext = position.size - _sizeDelta; 
         uint _realizedPnL = (position.size * _priceDelta / position.entryPrice) - (_sizeNext * _priceDelta / position.entryPrice); 
         uint _collateralNext = position.collateral - _collateralDelta; 

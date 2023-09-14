@@ -203,13 +203,16 @@ contract LPStaking is Governable, ReentrancyGuard {
     }
 
     function initStake() internal {
-        Stake storage data = stakers[address(this)];
         sharesPool = Math.INIT_LOCK_AMOUNT;
-        data.amountShares = Math.INIT_LOCK_AMOUNT;
-        data.stakeStart = Math.DOUBLE_ACC;
-        data.lockDuration = Math.DOUBLE_ACC;
-        data.timeShares = Math.INIT_LOCK_AMOUNT;
-        data.lastTimestamp = Math.DOUBLE_ACC;
+        stakers[address(this)] = Stake({
+            staked: 0,
+            amountShares: Math.INIT_LOCK_AMOUNT,
+            stakeStart: Math.DOUBLE_ACC,
+            lockDuration: Math.DOUBLE_ACC,
+            timeShares: Math.INIT_LOCK_AMOUNT,
+            lastTimestamp: Math.DOUBLE_ACC,
+            extraRewardClaimed: 0
+        });
     }
 
     function collectExtraRewards(address _user) internal {

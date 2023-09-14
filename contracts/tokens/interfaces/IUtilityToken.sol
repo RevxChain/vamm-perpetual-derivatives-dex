@@ -14,7 +14,8 @@ interface IUtilityToken is IERC721 {
         uint maxLeverage, 
         bool operatingFee, 
         bool liquidator, 
-        uint votePower
+        uint votePower,
+        uint flashLoanFee
     );
 
     function setTypeData( 
@@ -23,7 +24,8 @@ interface IUtilityToken is IERC721 {
         uint _maxLeverage, 
         bool _operatingFee, 
         bool _liquidator, 
-        uint _votePower
+        uint _votePower,
+        uint _flashLoanFee
     ) external;
 
     function updateTypeData(
@@ -31,7 +33,8 @@ interface IUtilityToken is IERC721 {
         uint _maxLeverage, 
         bool _operatingFee, 
         bool _liquidator, 
-        uint _votePower
+        uint _votePower,
+        uint _flashLoanFee
     ) external;
 
 }
