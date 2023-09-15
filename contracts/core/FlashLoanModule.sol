@@ -11,8 +11,9 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Math for uint;
 
-    uint public constant MIN_LOAN_FEE = 1;
-    uint public constant MAX_LOAN_FEE = 100;
+    uint public constant LOCAL_DENOMINATOR = 1e8;
+    uint public constant MIN_LOAN_FEE = 1000;
+    uint public constant MAX_LOAN_FEE = 2000000;
 
     uint public baseLoanFee;
     uint public minAmountToLoan;
@@ -70,7 +71,7 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
         validate(_borrowPoolAfter == _borrowPoolBefore, 43);
 
         income = _balanceAfter - _balanceBefore;   
-        protocolFeeReserves += income - _amount;
+        protocolFeeReserves += income;
     }
 
     function calculateFlashLoanFee(uint _amount, address _user) public view returns(uint fee) {
@@ -79,6 +80,6 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
         (bool _staker, , , , , uint _flashLoanFee) = IUtilityStorage(utilityStorage).getUserUtility(_user);
         if(_staker && _flashLoanFee > 0) _loanFee /= _flashLoanFee;
 
-        fee = _amount * _loanFee / Math.PRECISION;
+        fee = _amount * _loanFee / LOCAL_DENOMINATOR;
     }
 }
