@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "../tokens/interfaces/IStakedSupplyToken.sol";
 import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
 
@@ -22,7 +23,8 @@ contract LPStaking is Governable, ReentrancyGuard {
     uint public initShares;
     uint public extraRewardPool;
     
-    address public lpManager;   
+    address public LPManager;   
+    address public stakedToken;
     address public rewardToken;
 
     bool public isInitialized;
@@ -30,7 +32,6 @@ contract LPStaking is Governable, ReentrancyGuard {
     mapping(address => Stake) public stakers;
 
     struct Stake {
-        uint staked;
         uint amountShares;
         uint stakeStart;
         uint lockDuration;
@@ -39,11 +40,16 @@ contract LPStaking is Governable, ReentrancyGuard {
         uint extraRewardClaimed;
     }
 
-    function initialize(address _lpManager, address _rewardToken) external onlyHandler(gov) {  
+    function initialize(
+        address _LPManager, 
+        address _stakedToken, 
+        address _rewardToken
+    ) external onlyHandler(gov) {  
         require(!isInitialized, "LPStaking: initialized");
         isInitialized = true;
 
-        lpManager = _lpManager;
+        LPManager = _LPManager;
+        stakedToken = _stakedToken;
         rewardToken = _rewardToken;
 
         minLockDuration = 7 days;
@@ -61,13 +67,12 @@ contract LPStaking is Governable, ReentrancyGuard {
         extraRate = _extraRate;
     }
 
-    function stake(uint _amount, uint _lockDuration) external nonReentrant() {
+    function stakeLP(uint _amount, uint _lockDuration) external nonReentrant() {
         address _user = msg.sender;
-        Stake storage data = stakers[_user];
-        require(data.lastTimestamp == 0, "LPStaking: stake already");
+        require(IERC20(stakedToken).balanceOf(_user) == 0, "LPStaking: stake already");
         require(_lockDuration >= minLockDuration, "LPStaking: lockDuration underflow");
         require(Math.ONE_YEAR >= _lockDuration, "LPStaking: lockDuration overflow");
-        require(IERC20(lpManager).balanceOf(_user) >= _amount, "LPStaking: invalid balance");
+        require(IERC20(LPManager).balanceOf(_user) >= _amount, "LPStaking: invalid balance");
         require(_amount > 0, "LPStaking: invalid amount"); 
         if(timeSharesPool == 0) lastUpdated = block.timestamp;
 
@@ -86,69 +91,100 @@ contract LPStaking is Governable, ReentrancyGuard {
         pool += _amount;
         sharesPool += _userShare;
 
-        data.staked = _amount;
-        data.amountShares = _userShare; 
-        data.stakeStart = block.timestamp;
-        data.lockDuration = _lockDuration;
-        data.timeShares = _initShares;
-        data.lastTimestamp = block.timestamp;
+        IStakedSupplyToken(stakedToken).mint(_user, _amount);
 
-        IERC20(lpManager).safeTransferFrom(_user, address(this), _amount);
+        stakers[_user] = Stake({
+            amountShares: _userShare,
+            stakeStart: block.timestamp,
+            lockDuration: _lockDuration,
+            timeShares: _initShares,
+            lastTimestamp: block.timestamp,
+            extraRewardClaimed: 0
+        });
+
+        IERC20(LPManager).safeTransferFrom(_user, address(this), _amount);
     }
 
     function collectRewards(bool _baseReward, bool _extraReward) external nonReentrant() {
         address _user = msg.sender;
-        Stake storage data = stakers[_user];
+        Stake storage stake = stakers[_user];
         require(_baseReward || _extraReward, "LPStaking: no rewards");
-        require(data.lastTimestamp > 0, "LPStaking: not a staker");
+        require(stake.lastTimestamp > 0, "LPStaking: not a staker");
         updateTimeSharesPool();
         updateUserTimeShares(_user);
 
         if(_baseReward){
             uint _baseRewardAmount = calculateUserBaseReward(_user);
-            require(IERC20(lpManager).balanceOf(address(this)) >= _baseRewardAmount, "LPStaking: invalid balance");
+            require(IERC20(LPManager).balanceOf(address(this)) >= _baseRewardAmount, "LPStaking: invalid balance");
             uint _sharePoolDecrease = _baseRewardAmount * sharesPool / pool;
-            data.amountShares -= _sharePoolDecrease; 
+            stake.amountShares -= _sharePoolDecrease; 
             sharesPool -= _sharePoolDecrease;
             pool -= _baseRewardAmount;
-            IERC20(lpManager).safeTransfer(_user, _baseRewardAmount);
+            IERC20(LPManager).safeTransfer(_user, _baseRewardAmount);
         }
 
         if(_extraReward) collectExtraRewards(_user);
     }
 
-    function unstake() external nonReentrant() {
+    function unstakeLP() external nonReentrant() {
         address _user = msg.sender;
-        Stake storage data = stakers[_user];
-        require(data.lastTimestamp > 0, "LPStaking: not a staker");
-        require(block.timestamp >= data.stakeStart + data.lockDuration, "LPStaking: liquidity locked");
+        Stake storage stake = stakers[_user];
+        require(stake.lastTimestamp > 0, "LPStaking: not a staker");
+        require(block.timestamp >= stake.stakeStart + stake.lockDuration, "LPStaking: liquidity locked");
         
         uint _amount = calculateUserAmount(_user);
-        require(IERC20(lpManager).balanceOf(address(this)) >= _amount, "LPStaking: invalid balance");
+        uint _underlyingAmount = IERC20(stakedToken).balanceOf(_user);
+        require(IERC20(LPManager).balanceOf(address(this)) >= _amount, "LPStaking: invalid balance");
 
         updateTimeSharesPool();
         updateUserTimeShares(_user);
         collectExtraRewards(_user);
 
-        timeSharesPool -= data.timeShares;
+        timeSharesPool -= stake.timeShares;
         membersCount -= 1;
         pool -= _amount;
-        sharesPool -= data.amountShares;
+        sharesPool -= stake.amountShares;
 
         delete stakers[_user];
 
-        IERC20(lpManager).safeTransfer(_user, _amount);
+        IStakedSupplyToken(stakedToken).burnFrom(_user, _underlyingAmount);
+        IERC20(LPManager).safeTransfer(_user, _amount);
     }
 
     function addRewards(uint _amount, uint _extraAmount) external nonReentrant() {
         address _user = msg.sender;
         require(_amount > 0 || _extraAmount > 0, "LPStaking: invalid amount"); 
-        require(IERC20(lpManager).balanceOf(_user) >= _amount, "LPStaking: invalid balance");
+        require(IERC20(LPManager).balanceOf(_user) >= _amount, "LPStaking: invalid balance");
         require(IERC20(rewardToken).balanceOf(_user) >= _extraAmount, "LPStaking: invalid balance");
         pool += _amount;
         extraRewardPool += _extraAmount;
-        if(_amount > 0) IERC20(lpManager).safeTransferFrom(_user, address(this), _amount);
+        if(_amount > 0) IERC20(LPManager).safeTransferFrom(_user, address(this), _amount);
         if(_extraAmount > 0) IERC20(rewardToken).safeTransferFrom(_user, address(this), _extraAmount);
+    }
+
+    function getUserStakeInfo(address _user) external view returns(
+        uint underlyingBalance,
+        uint totalBalance,
+        uint baseReward,
+        uint extraReward,
+        uint amountShares,
+        uint timeShares,
+        uint stakeStart,
+        uint lockDuration,
+        uint lastUpdatedTimestamp
+    ) {
+        Stake memory stake = stakers[_user];
+        return (
+            IERC20(stakedToken).balanceOf(_user),
+            calculateUserAmount(_user),
+            calculateUserBaseReward(_user),
+            calculateUserExtraReward(_user),
+            stake.amountShares,
+            preUpdateUserTimeShares(_user),
+            stake.stakeStart,
+            stake.lockDuration,
+            stake.lastTimestamp
+        );
     }
 
     function preUpdateInitShares() public view returns(uint) {
@@ -160,18 +196,22 @@ contract LPStaking is Governable, ReentrancyGuard {
     }
 
     function preUpdateUserTimeShares(address _user) public view returns(uint) {
-        Stake memory data = stakers[_user];
-        if(data.lastTimestamp == 0) return 0; 
-        return data.timeShares + (block.timestamp - data.lastTimestamp);
+        Stake memory stake = stakers[_user];
+        if(stake.lastTimestamp == 0) return 0; 
+        return stake.timeShares + (block.timestamp - stake.lastTimestamp);
     }
 
     function calculateUserBaseReward(address _user) public view returns(uint) {
-        return calculateUserAmount(_user) - stakers[_user].staked;
+        return calculateUserAmount(_user) - IERC20(stakedToken).balanceOf(_user);
     }
 
     function calculateUserExtraReward(address _user) public view returns(uint) {
-        Stake memory data = stakers[_user];
-        return calculateRewardIncrease(data.staked, calculateUserRate(_user), data.lastTimestamp) - data.extraRewardClaimed;
+        Stake memory stake = stakers[_user];
+        return calculateRewardIncrease(
+            IERC20(stakedToken).balanceOf(_user), 
+            calculateUserRate(_user), 
+            stake.lastTimestamp
+        ) - stake.extraRewardClaimed;
     }
 
     function calculateUserAmount(address _user) public view returns(uint) {
@@ -187,11 +227,11 @@ contract LPStaking is Governable, ReentrancyGuard {
     }
 
     function updateUserTimeShares(address _user) internal returns(uint) {
-        Stake storage data = stakers[_user];
-        data.timeShares = preUpdateUserTimeShares(_user);
-        data.lastTimestamp = block.timestamp;
+        Stake storage stake = stakers[_user];
+        stake.timeShares = preUpdateUserTimeShares(_user);
+        stake.lastTimestamp = block.timestamp;
 
-        return data.timeShares;
+        return stake.timeShares;
     }
 
     function updateTimeSharesPool() internal returns(uint) {
@@ -203,9 +243,9 @@ contract LPStaking is Governable, ReentrancyGuard {
     }
 
     function initStake() internal {
+        IStakedSupplyToken(stakedToken).mint(address(this), Math.INIT_LOCK_AMOUNT);
         sharesPool = Math.INIT_LOCK_AMOUNT;
         stakers[address(this)] = Stake({
-            staked: 0,
             amountShares: Math.INIT_LOCK_AMOUNT,
             stakeStart: Math.DOUBLE_ACC,
             lockDuration: Math.DOUBLE_ACC,
@@ -216,11 +256,11 @@ contract LPStaking is Governable, ReentrancyGuard {
     }
 
     function collectExtraRewards(address _user) internal {
-        Stake storage data = stakers[_user];
+        Stake storage stake = stakers[_user];
         uint _extraRewardAmount = calculateUserExtraReward(_user);
         require(IERC20(rewardToken).balanceOf(address(this)) >= _extraRewardAmount, "LPStaking: invalid balance");
         extraRewardPool -= _extraRewardAmount;
-        data.extraRewardClaimed += _extraRewardAmount;
+        stake.extraRewardClaimed += _extraRewardAmount;
         IERC20(rewardToken).safeTransfer(_user, _extraRewardAmount);
     }
 }

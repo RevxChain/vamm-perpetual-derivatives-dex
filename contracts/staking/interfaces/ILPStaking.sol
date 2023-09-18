@@ -14,17 +14,18 @@ interface ILPStaking {
     function extraRewardPool() external view returns(uint);
     
     function lpManager() external view returns(address);
+    function stakedToken() external view returns(address); 
     function rewardToken() external view returns(address);
     
     function setMinLockDuration(uint _minLockDuration) external;
 
     function setExtraRate(uint _extraRate) external;
 
-    function stake(uint _amount, uint _lockDuration) external;
+    function stakeLP(uint _amount, uint _lockDuration) external;
 
     function collectRewards(bool _baseReward, bool _extraReward) external;
 
-    function unstake() external;
+    function unstakeLP() external;
 
     function addRewards(uint _amount, uint _extraAmount) external;
 
@@ -41,5 +42,17 @@ interface ILPStaking {
     function calculateUserAmount(address _user) external view returns(uint);
 
     function calculateUserRate(address _user) external view returns(uint);
+
+    function getUserStakeInfo(address _user) external view returns(
+        uint underlyingBalance,
+        uint totalBalance,
+        uint baseReward,
+        uint extraReward,
+        uint amountShares,
+        uint timeShares,
+        uint stakeStart,
+        uint lockDuration,
+        uint lastUpdatedTimestamp
+    );
     
 }

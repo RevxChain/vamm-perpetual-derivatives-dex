@@ -117,7 +117,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         underlyingAmount = _stableAmount.precisionToStable();
     }
 
-    function decimals() public override pure returns(uint8) {
+    function decimals() public pure override returns(uint8) {
         return 9;
     }
     

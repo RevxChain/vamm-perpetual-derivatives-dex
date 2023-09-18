@@ -26,7 +26,7 @@ contract Debtor is IDebtor, Ownable {
 
     receive() external payable {}
 
-    function loan(uint _amount, bytes calldata _data) external onlyOwner() {
+    function loan(uint _amount, bytes calldata _data) external payable onlyOwner() {
         require(!locked, "Debtor: locked");
         (locked, amount, balance, fee) = (true, _amount, IERC20(stable).balanceOf(address(this)), calculateActualFee(_amount));
 
@@ -35,7 +35,7 @@ contract Debtor is IDebtor, Ownable {
         (locked, amount, balance, fee) = (false, 0, 0, 0);
     }
 
-    function executeFlashLoan(uint _amount, uint _fee, bytes calldata _data) external {
+    function executeFlashLoan(uint _amount, uint _fee, bytes calldata /*_data*/) external {
         require(tx.origin == owner(), "Debtor: invalid tx sender");
         require(msg.sender == vault, "Debtor: invalid msg sender");
         require(amount == _amount, "Debtor: wrong amount");

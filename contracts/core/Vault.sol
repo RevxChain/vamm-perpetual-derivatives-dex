@@ -53,7 +53,7 @@ contract Vault is FlashLoanModule {
         minChangeTime = 30;
         fundingPriceMultiplier = 5000;
         minAmountToLoan = 1e6;
-        baseLoanFee = 30;
+        baseLoanFee = 300000;
         flashLoanEnabled = true;
     }
 

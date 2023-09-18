@@ -52,10 +52,11 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
         validate(_amount >= minAmountToLoan, 37);
         validate(_debtor != tx.origin, 38);
         validate(poolAmount >= _amount, 39);
+        uint _balanceBefore = IERC20(stable).balanceOf(address(this));
+        validate(_balanceBefore >= _amount, 40);
 
         fee = calculateFlashLoanFee(_amount, tx.origin);
 
-        uint _balanceBefore = IERC20(stable).balanceOf(address(this));
         (uint _poolBefore, uint _borrowsBefore, uint _borrowPoolBefore) = (poolAmount, totalBorrows, borrowPool);
 
         IERC20(stable).safeTransfer(_debtor, _amount);
@@ -65,10 +66,10 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
         uint _balanceAfter = IERC20(stable).balanceOf(address(this));
         (uint _poolAfter, uint _borrowsAfter, uint _borrowPoolAfter) = (poolAmount, totalBorrows, borrowPool);
 
-        validate(_balanceAfter >= _balanceBefore + fee, 40);
-        validate(_poolAfter == _poolBefore, 41);
-        validate(_borrowsAfter == _borrowsBefore, 42);
-        validate(_borrowPoolAfter == _borrowPoolBefore, 43);
+        validate(_balanceAfter >= _balanceBefore + fee, 41);
+        validate(_poolAfter == _poolBefore, 42);
+        validate(_borrowsAfter == _borrowsBefore, 43);
+        validate(_borrowPoolAfter == _borrowPoolBefore, 44);
 
         income = _balanceAfter - _balanceBefore;   
         protocolFeeReserves += income;

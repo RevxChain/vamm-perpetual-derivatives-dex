@@ -60,7 +60,7 @@ contract BorrowingModule is VaultBase {
     }
 
     function availableLiquidity() public view returns(uint) {
-        return poolAmount > totalBorrows ? poolAmount - totalBorrows : 0;
+        return poolAmount > preUpdateTotalBorrows() ? poolAmount - preUpdateTotalBorrows() : 0;
     }
 
     function calculateActualBorrowRate() public view returns(uint) {
@@ -76,7 +76,7 @@ contract BorrowingModule is VaultBase {
     }
 
     function utilizationRate() public view returns(uint) {
-        return totalBorrows * Math.PRECISION / poolAmount;
+        return preUpdateTotalBorrows() * Math.PRECISION / poolAmount;
     }
 
     function borrowMargin(bytes32 _key, uint _margin) internal {
