@@ -10,7 +10,8 @@ interface IVault {
     function positionsTracker() external view returns(address);
     function marketRouter() external view returns(address);
     function utilityStorage() external view returns(address);
-
+    function liquidityManager() external view returns(address);
+    
     function poolAmount() external view returns(uint);
     function minChangeTime() external view returns(uint);
     function baseMaxLeverage() external view returns(uint);
@@ -31,9 +32,10 @@ interface IVault {
     function minAmountToLoan() external view returns(uint);
     function baseLoanFee() external view returns(uint);
 
-    function shouldValidatePoolShares() external view returns(bool);
     function flashLoanEnabled() external view returns(bool);
-
+    function shouldValidatePoolShares() external view returns(bool);
+    function extraUsageLiquidityEnabled() external view returns(bool);
+    
     function whitelistedToken(address _indexToken) external view returns(bool);
     function errors(uint _errorCode) external view returns(string memory);
     function calculatePositionKey(address _user, address _indexToken, bool _long) external pure returns(bytes32);
@@ -109,6 +111,7 @@ interface IVault {
     function setMinAmountToLoan(uint _minAmountToLoan) external;
     function setBaseLoanFee(uint _baseFee) external;
     function setFlashLoanEnabled(bool _enabled) external;
+    function setExtraUsageLiquidityEnabled(bool _extraUsageLiquidityEnabled) external;
     function withdrawProtocolFees() external;
     function withdrawFees() external;
 
@@ -127,6 +130,8 @@ interface IVault {
     ) external;
 
     function directIncreasePool(uint _underlyingAmount) external;
+
+    function manualUseLiquidity() external;
 
     function increasePosition(
         address _user, 

@@ -26,9 +26,11 @@ contract VaultBase is Governable {
     address public positionsTracker;
     address public marketRouter;
     address public utilityStorage;
+    address public liquidityManager;
 
     bool public isInitialized;
     bool public shouldValidatePoolShares;
+    bool public extraUsageLiquidityEnabled;
 
     mapping(address => bool) public whitelistedToken;
     mapping(uint => string) public errors;

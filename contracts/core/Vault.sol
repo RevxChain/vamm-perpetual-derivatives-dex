@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import "./FlashLoanModule.sol";
+import "../periphery/interfaces/ILiquidityManager.sol";
 
 contract Vault is FlashLoanModule {
     using SafeERC20 for IERC20;
@@ -23,7 +24,8 @@ contract Vault is FlashLoanModule {
         address _positionsTracker,
         address _marketRouter,
         address _controller,
-        address _utilityStorage
+        address _utilityStorage,
+        address _liquidityManager
     ) external onlyHandler(gov) validateAddress(_controller) {   
         validate(!isInitialized, 1);
         isInitialized = true;
@@ -36,6 +38,7 @@ contract Vault is FlashLoanModule {
         marketRouter = _marketRouter;
         controller = _controller;
         utilityStorage = _utilityStorage;
+        liquidityManager = _liquidityManager;
 
         shouldValidatePoolShares = true;
         lastUpdateTotalBorrows = block.timestamp;
@@ -84,8 +87,19 @@ contract Vault is FlashLoanModule {
         operatingFeePriceMultiplier = _operatingFeePriceMultiplier;
     }
 
+    function setExtraUsageLiquidityEnabled(bool _extraUsageLiquidityEnabled) external onlyHandler(dao) {
+        validate(!ILiquidityManager(liquidityManager).active(), 45);
+        extraUsageLiquidityEnabled = _extraUsageLiquidityEnabled;
+    }
+
+    function manualUseLiquidity() external onlyHandler(liquidityManager) {
+        useLiquidity();
+    }
+
     function increasePool(uint _amount) external onlyHandler(LPManager) {
         poolAmount += _amount;
+
+        useLiquidity();
     }
 
     function decreasePool(
@@ -96,6 +110,8 @@ contract Vault is FlashLoanModule {
         poolAmount -= _amount;
 
         IERC20(stable).safeTransfer(_user, _underlyingAmount);
+
+        if(_user != LPManager) useLiquidity();
     }
 
     function directIncreasePool(uint _underlyingAmount) external nonReentrant() {
@@ -103,6 +119,7 @@ contract Vault is FlashLoanModule {
         poolAmount += _underlyingAmount.stableToPrecision();
         IERC20(stable).safeTransferFrom(msg.sender, address(this), _underlyingAmount); 
         validate(IERC20(stable).balanceOf(address(this)) == _balance + _underlyingAmount, 21);
+        useLiquidity();
     }
 
     function increasePosition(
@@ -161,6 +178,7 @@ contract Vault is FlashLoanModule {
         validateLiquidatable(_user, _indexToken, _long, false);
 
         if(zeroOperatingFee) utilityDecreaseOperationFee(false);
+        useLiquidity();
     }
 
     function addCollateral(
@@ -196,6 +214,7 @@ contract Vault is FlashLoanModule {
         position.lastUpdateTime = block.timestamp;
 
         validateLeverage(position.size, position.collateral, _user);
+        useLiquidity();
     }
 
     function decreasePosition(
@@ -247,6 +266,7 @@ contract Vault is FlashLoanModule {
         }
 
         if(zeroOperatingFee) utilityDecreaseOperationFee(false);
+        useLiquidity();
     }
 
     function withdrawCollateral(
@@ -283,6 +303,7 @@ contract Vault is FlashLoanModule {
         
         validateLeverage(position.size, position.collateral, _user);
         validateLiquidatable(_user, _indexToken, _long, false);
+        useLiquidity();
     }
 
     function serviceWithdrawCollateral(
@@ -318,6 +339,7 @@ contract Vault is FlashLoanModule {
         }
 
         delete positions[_key];
+        useLiquidity();
     }
 
     function liquidatePosition(
@@ -387,6 +409,7 @@ contract Vault is FlashLoanModule {
         delete positions[_key];
 
         if(zeroOperatingFee) utilityDecreaseOperationFee(false);
+        useLiquidity();
     }
 
     function validateLiquidate(
@@ -530,6 +553,25 @@ contract Vault is FlashLoanModule {
 
     function utilityDecreaseOperationFee(bool _zeroFee) internal {
         zeroOperatingFee = _zeroFee;
+    }
+
+    function useLiquidity() internal {
+        if(!extraUsageLiquidityEnabled) return;
+        bool _active = ILiquidityManager(liquidityManager).active();
+        uint _amount;
+        if(_active){
+            (_active, _amount) = ILiquidityManager(liquidityManager).checkRemove(true);
+            if(_active){
+                (bool _success, uint _earnedAmount) = ILiquidityManager(liquidityManager).removeLiquidity(_amount);
+                if(_success) poolAmount += _earnedAmount;
+            } 
+        } else {
+            (_active, _amount) = ILiquidityManager(liquidityManager).checkUsage(true);
+            if(_active){
+                IERC20(stable).safeTransfer(liquidityManager, _amount);
+                ILiquidityManager(liquidityManager).provideLiquidity(_amount);
+            }
+        }
     }
 
     function _decreasePosition(

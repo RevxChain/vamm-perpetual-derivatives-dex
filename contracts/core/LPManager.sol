@@ -95,9 +95,8 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         }
         _mint(_user, lpAmount);
         lastAdded[_user] = block.timestamp;
-
-        IVault(vault).increasePool(_amount);
         IERC20(stable).safeTransferFrom(_user, vault, _underlyingAmount);
+        IVault(vault).increasePool(_amount);
     }
 
     function removeLiquidity(uint _sTokenAmount) external nonReentrant() returns(uint underlyingAmount) {

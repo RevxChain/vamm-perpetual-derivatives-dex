@@ -46,7 +46,7 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         __baseURI = baseURI_;
     }
 
-    function mint(address[] calldata _user, uint[] calldata _typeId) external onlyHandler(controller) {
+    function mint(address[] calldata _user, uint[] calldata _typeId) external onlyHandler(gov) {
         require(_user.length == _typeId.length, "UtilityToken: invalid data array length");
         require(MAX_TOTAL_SUPPLY >= totalSupply() + _user.length, "UtilityToken: global max total supply exhausted");
         for(uint i; _user.length > i; i++){
