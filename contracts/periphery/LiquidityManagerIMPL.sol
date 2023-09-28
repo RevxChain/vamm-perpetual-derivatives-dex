@@ -99,6 +99,8 @@ contract LiquidityManagerIMPL is ImplementationSlot, Governable, ReentrancyGuard
         delete manualUsageEnabled;
         delete minRemoveAllowedShare;
         delete newImplEnabled;
+        delete rewardsController;
+        delete extraReward;
 
         strategy = _strategy;
         implementation = _implementation;
@@ -108,17 +110,18 @@ contract LiquidityManagerIMPL is ImplementationSlot, Governable, ReentrancyGuard
         Settings calldata _addSetup, 
         Settings calldata _removeSetup
     ) external onlyHandler(dao) {
+        string memory _error = "LiquidityManager: invalid settings";
         require(isInitialized, "LiquidityManager: not initialized");
         require(!active, "LiquidityManager: active");
         require(targetPool != address(0), "LiquidityManager: main settings not initialized");
-        require(_addSetup.allowedSupplyRate > _removeSetup.allowedSupplyRate, "LiquidityManager: invalid settings");
-        require(_removeSetup.utilizationRateKink > _addSetup.utilizationRateKink, "LiquidityManager: invalid settings");
-        require(_addSetup.availableLiquidityKink > _removeSetup.availableLiquidityKink, "LiquidityManager: invalid settings");
-        require(_addSetup.poolAmountKink > _removeSetup.poolAmountKink, "LiquidityManager: invalid settings");
-        require(_removeSetup.totalPositionsDeltaKink > _addSetup.totalPositionsDeltaKink, "LiquidityManager: invalid settings");
-        require(Math.PRECISION >= _addSetup.allowedShare, "LiquidityManager: invalid settings");
-        require(Math.PRECISION >= _removeSetup.allowedShare, "LiquidityManager: invalid settings");
-        require(_removeSetup.allowedShare >= minRemoveAllowedShare, "LiquidityManager: invalid settings");
+        require(_addSetup.allowedSupplyRate > _removeSetup.allowedSupplyRate, _error);
+        require(_removeSetup.utilizationRateKink > _addSetup.utilizationRateKink, _error);
+        require(_addSetup.availableLiquidityKink > _removeSetup.availableLiquidityKink, _error);
+        require(_addSetup.poolAmountKink > _removeSetup.poolAmountKink, _error);
+        require(_removeSetup.totalPositionsDeltaKink > _addSetup.totalPositionsDeltaKink, _error);
+        require(Math.PRECISION >= _addSetup.allowedShare, _error);
+        require(Math.PRECISION >= _removeSetup.allowedShare, _error);
+        require(_removeSetup.allowedShare >= minRemoveAllowedShare, _error);
         addSlot = _addSetup;
         removeSlot = _removeSetup;
     }
