@@ -113,12 +113,8 @@ contract OrderBook is Governable, ReentrancyGuard {
     }
 
     function cancelMultiple(uint[] memory _increaseOrderIndexes, uint[] memory _decreaseOrderIndexes) external {
-        for (uint i = 0; i < _increaseOrderIndexes.length; i++) {
-            cancelIncreaseOrder(_increaseOrderIndexes[i]);
-        }
-        for (uint i = 0; i < _decreaseOrderIndexes.length; i++) {
-            cancelDecreaseOrder(_decreaseOrderIndexes[i]);
-        }
+        for(uint i = 0; _increaseOrderIndexes.length > i; i++) cancelIncreaseOrder(_increaseOrderIndexes[i]);
+        for(uint i = 0; _decreaseOrderIndexes.length > i; i++) cancelDecreaseOrder(_decreaseOrderIndexes[i]);
     }
 
     function createIncreaseOrder(

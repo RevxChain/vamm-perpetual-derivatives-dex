@@ -188,7 +188,7 @@ contract PositionsTracker is Governable, ReentrancyGuard {
             _totalDelta = -_totalDelta;
         }
         
-        delta = uint(_totalDelta) * Math.PRECISION / _totalSizes;
+        delta = uint(_totalDelta).mulDiv(Math.PRECISION, _totalSizes);
     }
 
     function calculateProfit(
@@ -217,6 +217,6 @@ contract PositionsTracker is Governable, ReentrancyGuard {
 
     function calculateDelta(uint _num, uint _refNum) internal pure returns(uint delta, uint pDelta) {
         delta = _num > _refNum ? _num - _refNum : _refNum - _num;
-        pDelta = delta * Math.PRECISION / _num;
+        pDelta = delta.mulDiv(Math.PRECISION, _num);
     }
 }

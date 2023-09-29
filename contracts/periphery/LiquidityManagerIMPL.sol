@@ -231,7 +231,7 @@ contract LiquidityManagerIMPL is ImplementationSlot, Governable, ReentrancyGuard
         if(_isActual && _hasTradersProfit && _totalPositionsDelta >= slot.totalPositionsDeltaKink) return(false, 0);
 
         allowed = true;
-        amount = _availableLiquidity * slot.allowedShare / Math.PRECISION;
+        amount = _availableLiquidity.mulDiv(slot.allowedShare, Math.PRECISION);
         if(amount > slot.allowedAmount) amount = slot.allowedAmount;
     }
     
@@ -262,7 +262,7 @@ contract LiquidityManagerIMPL is ImplementationSlot, Governable, ReentrancyGuard
             slot.availableLiquidityKink >= _availableLiquidity || 
             slot.poolAmountKink >= _poolAmount || 
             (_isActual && _hasTradersProfit && _totalPositionsDelta >= slot.totalPositionsDeltaKink)
-        ) return (true, amount * slot.allowedShare / Math.PRECISION);
+        ) return (true, amount.mulDiv(slot.allowedShare, Math.PRECISION));
     }
 
     function getVaultState() public view returns(uint poolAmount, uint availableLiquidity, uint utilizationRate) {

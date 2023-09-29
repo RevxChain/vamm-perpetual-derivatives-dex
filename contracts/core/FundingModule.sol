@@ -6,6 +6,7 @@ import "./interfaces/IVAMM.sol";
 import "../oracle/interfaces/IPriceFeed.sol";
 
 contract FundingModule is BorrowingModule {
+    using Math for uint;
 
     uint public constant MAX_FUNDING_PRICE_MULTIPLIER = 30000; 
 
@@ -45,7 +46,7 @@ contract FundingModule is BorrowingModule {
         if(block.timestamp - _updateTime > 0){
             uint _vammPrice = IVAMM(VAMM).getPrice(_indexToken);
             uint _feedPrice = IPriceFeed(priceFeed).getPrice(_indexToken);
-            uint _fundingFeeRate = (getPriceDelta(_vammPrice, _feedPrice) * Math.ACCURACY / _vammPrice) * fundingPriceMultiplier / Math.PRECISION; 
+            uint _fundingFeeRate = (getPriceDelta(_vammPrice, _feedPrice).mulDiv(Math.ACCURACY, _vammPrice)).mulDiv(fundingPriceMultiplier, Math.PRECISION); 
             uint _totalFundingIncrease;
 
             if(_vammPrice > _feedPrice){
@@ -73,11 +74,11 @@ contract FundingModule is BorrowingModule {
         (uint _totalLongFunding, uint _totalShortFunding) = preUpdateTotalFunding(_indexToken);
 
         if(_long){
-            fundingFeeDebt = position.entryFunding * _totalLongFunding / funding.fundingLongSharePool; 
-            fundingFeeGain = position.entryFunding * funding.fundingLongFeeAmount / funding.fundingLongSharePool;
+            fundingFeeDebt = position.entryFunding.mulDiv(_totalLongFunding, funding.fundingLongSharePool);
+            fundingFeeGain = position.entryFunding.mulDiv(funding.fundingLongFeeAmount, funding.fundingLongSharePool);
         } else {
-            fundingFeeDebt = position.entryFunding * _totalShortFunding / funding.fundingShortSharePool; 
-            fundingFeeGain = position.entryFunding * funding.fundingShortFeeAmount / funding.fundingShortSharePool; 
+            fundingFeeDebt = position.entryFunding.mulDiv(_totalShortFunding, funding.fundingShortSharePool); 
+            fundingFeeGain = position.entryFunding.mulDiv(funding.fundingShortFeeAmount, funding.fundingShortSharePool);
         }
 
         fundingFeeDebt = fundingFeeDebt > position.size ? fundingFeeDebt - position.size : 0;
@@ -93,8 +94,8 @@ contract FundingModule is BorrowingModule {
         Funding memory funding = fundings[_indexToken];
         Position memory position = positions[_key];
         return _long ?
-        position.entryFunding * funding.totalLongFunding / funding.fundingLongSharePool :
-        position.entryFunding * funding.totalShortFunding / funding.fundingShortSharePool;
+        position.entryFunding.mulDiv(funding.totalLongFunding, funding.fundingLongSharePool) : 
+        position.entryFunding.mulDiv(funding.totalShortFunding, funding.fundingShortSharePool);
     }
 
     function setFundingTokenConfig(address _indexToken) internal {     
@@ -118,12 +119,12 @@ contract FundingModule is BorrowingModule {
         Position storage position = positions[_key];
         uint _userShares;
         if(_long){
-            _userShares = _sizeDelta * funding.fundingLongSharePool / funding.totalLongFunding;
+            _userShares = _sizeDelta.mulDiv(funding.fundingLongSharePool, funding.totalLongFunding);
             position.entryFunding += _userShares;
             funding.fundingLongSharePool += _userShares;
             funding.totalLongFunding += _sizeDelta;
         } else {
-            _userShares = _sizeDelta * funding.fundingShortSharePool / funding.totalShortFunding;
+            _userShares = _sizeDelta.mulDiv(funding.fundingShortSharePool, funding.totalShortFunding);
             position.entryFunding += _userShares;
             funding.fundingShortSharePool += _userShares;
             funding.totalShortFunding += _sizeDelta;
@@ -164,7 +165,7 @@ contract FundingModule is BorrowingModule {
         uint _sharePoolDecrease;
         if(_userFundingFeeDebt > 0){
             if(_long){
-                _sharePoolDecrease = _userFundingFeeDebt * funding.fundingLongSharePool / funding.totalLongFunding;
+                _sharePoolDecrease = _userFundingFeeDebt.mulDiv(funding.fundingLongSharePool, funding.totalLongFunding);
                 if(shouldValidatePoolShares) validatePoolShares(
                     funding.totalLongFunding, 
                     _userFundingFeeDebt, 
@@ -179,7 +180,7 @@ contract FundingModule is BorrowingModule {
                 _userFundingFeeDebt >= funding.totalLongFunding ? 
                 funding.totalLongFunding = Math.INIT_LOCK_AMOUNT : funding.totalLongFunding -= _userFundingFeeDebt;
             } else {
-                _sharePoolDecrease = _userFundingFeeDebt * funding.fundingShortSharePool / funding.totalShortFunding;
+                _sharePoolDecrease = _userFundingFeeDebt.mulDiv(funding.fundingShortSharePool, funding.totalShortFunding);
                 if(shouldValidatePoolShares) validatePoolShares(
                     funding.totalShortFunding, 
                     _userFundingFeeDebt, 

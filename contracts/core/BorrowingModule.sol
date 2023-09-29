@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import "./VaultBase.sol";
 
 contract BorrowingModule is VaultBase {
+    using Math for uint;
     
     uint public constant MAX_BASE_BORROW_RATE_PER_YEAR = 5e16; 
     uint public constant MAX_EXTRA_BORROW_RATE_PER_YEAR = 10e16; 
@@ -49,8 +50,8 @@ contract BorrowingModule is VaultBase {
         }       
     }
 
-    function preCalculateUserDebt(bytes32 _key) public view returns(uint) {
-        return positions[_key].borrowed * preUpdateTotalBorrows() / borrowPool;
+    function preCalculateUserDebt(bytes32 _key) public view returns(uint) { 
+        return positions[_key].borrowed.mulDiv(preUpdateTotalBorrows(), borrowPool);
     }
 
     function preCalculateUserBorrowDebt(bytes32 _key) public view returns(uint) {
@@ -65,23 +66,19 @@ contract BorrowingModule is VaultBase {
 
     function calculateActualBorrowRate() public view returns(uint) {
         if(utilizationRateKink > utilizationRate()){
-            if(utilizationRate() >= Math.DENOMINATOR){
-                return extraBorrowRatePerYear;
-            } else {
-                return baseBorrowRatePerYear;
-            } 
+            return utilizationRate() >= Math.DENOMINATOR ? extraBorrowRatePerYear : baseBorrowRatePerYear;
         } else {
             return extraBorrowRatePerYear * utilizationRate() / Math.DENOMINATOR;
         }
     }
 
     function utilizationRate() public view returns(uint) {
-        return preUpdateTotalBorrows() * Math.PRECISION / poolAmount;
+        return preUpdateTotalBorrows().mulDiv(Math.PRECISION, poolAmount);
     }
 
     function borrowMargin(bytes32 _key, uint _margin) internal {
         validate(availableLiquidity() >= _margin, 25);
-        uint _userShares = _margin * borrowPool / totalBorrows;
+        uint _userShares = _margin.mulDiv(borrowPool, totalBorrows);
         positions[_key].borrowed += _userShares;
         borrowPool += _userShares;
         totalBorrows += _margin;  
@@ -91,7 +88,7 @@ contract BorrowingModule is VaultBase {
         userBorrowDebt = preCalculateUserBorrowDebt(_key);
         if(userBorrowDebt > 0){
             uint _halfBorrowDebt = userBorrowDebt / 2;
-            uint _sharePoolDecrease = userBorrowDebt * borrowPool / totalBorrows;
+            uint _sharePoolDecrease = userBorrowDebt.mulDiv(borrowPool, totalBorrows);
             positions[_key].borrowed -= _sharePoolDecrease; 
             borrowPool -= _sharePoolDecrease;
             totalBorrows -= userBorrowDebt;
@@ -101,7 +98,7 @@ contract BorrowingModule is VaultBase {
     }
 
     function borrowMarginRedeem(bytes32 _key, uint _margin) internal {
-        uint _sharePoolDecrease = _margin * borrowPool / totalBorrows;
+        uint _sharePoolDecrease = _margin.mulDiv(borrowPool, totalBorrows);
         Position storage position = positions[_key];
         if(shouldValidatePoolShares) validatePoolShares(totalBorrows, _margin, borrowPool, _sharePoolDecrease, position.borrowed);
         _sharePoolDecrease >= position.borrowed ? 

@@ -10,6 +10,7 @@ import "../libraries/Math.sol";
 
 contract LPStaking is Governable, ReentrancyGuard {
     using SafeERC20 for IERC20;    
+    using Math for uint;
 
     uint public constant MIN_LOCK_DURATION = 1 days;
  
@@ -82,7 +83,7 @@ contract LPStaking is Governable, ReentrancyGuard {
 
         uint _userShare; 
         if(sharesPool > 0){
-            _userShare = _amount * sharesPool / pool;
+            _userShare = _amount.mulDiv(sharesPool, pool);
         } else {
             _userShare = _amount;
             initStake(); 
@@ -116,7 +117,7 @@ contract LPStaking is Governable, ReentrancyGuard {
         if(_baseReward){
             uint _baseRewardAmount = calculateUserBaseReward(_user);
             require(IERC20(LPManager).balanceOf(address(this)) >= _baseRewardAmount, "LPStaking: invalid balance");
-            uint _sharePoolDecrease = _baseRewardAmount * sharesPool / pool;
+            uint _sharePoolDecrease = _baseRewardAmount.mulDiv(sharesPool, pool);
             stake.amountShares -= _sharePoolDecrease; 
             sharesPool -= _sharePoolDecrease;
             pool -= _baseRewardAmount;
@@ -215,15 +216,15 @@ contract LPStaking is Governable, ReentrancyGuard {
     }
 
     function calculateUserAmount(address _user) public view returns(uint) {
-        return stakers[_user].amountShares * pool / sharesPool;
+        return stakers[_user].amountShares.mulDiv(pool, sharesPool);
     }
 
     function calculateUserRate(address _user) public view returns(uint) {
-        return preUpdateUserTimeShares(_user) * extraRate / preUpdateTimeSharesPool();
+        return preUpdateUserTimeShares(_user).mulDiv(extraRate, preUpdateTimeSharesPool());
     } 
 
     function calculateRewardIncrease(uint _staked, uint _rate, uint _lastUpdate) internal view returns(uint) {
-        return (_staked * _rate * ((block.timestamp - _lastUpdate) * Math.ACCURACY / Math.ONE_YEAR)) / Math.DOUBLE_ACC;
+        return (_staked * _rate * ((block.timestamp - _lastUpdate).mulDiv(Math.ACCURACY, Math.ONE_YEAR))) / Math.DOUBLE_ACC;
     }
 
     function updateUserTimeShares(address _user) internal returns(uint) {

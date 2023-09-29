@@ -88,7 +88,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         uint _amount = _underlyingAmount.stableToPrecision();
  
         if(totalSupply() > 0){
-            lpAmount = _amount * totalSupply() / IVault(vault).poolAmount();
+            lpAmount = _amount.mulDiv(totalSupply(), IVault(vault).poolAmount());
         } else {
             lpAmount = _amount.sqrt();
             _mint(vault, Math.INIT_LOCK_AMOUNT);
@@ -112,7 +112,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
     }
 
     function calculateUnderlying(uint _sTokenAmount) public view returns(uint underlyingAmount) {
-        uint _stableAmount = _sTokenAmount * IVault(vault).poolAmount() / totalSupply();
+        uint _stableAmount = _sTokenAmount.mulDiv(IVault(vault).poolAmount(), totalSupply());
         underlyingAmount = _stableAmount.precisionToStable();
     }
 
@@ -132,7 +132,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
             }
         }
 
-        uint _feeAmount = _amount * (_baseFee + _profitFee) / Math.PRECISION;
+        uint _feeAmount = _amount.mulDiv((_baseFee + _profitFee), Math.PRECISION);
         
         if(IVault(vault).totalBorrows() > IVault(vault).availableLiquidity() || _feeAmount == 0) return _amount;
 
@@ -156,7 +156,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
 
         if(IVault(vault).totalBorrows() > IVault(vault).availableLiquidity()) _removeFee = baseRemoveFee;
 
-        uint _feeAmount = _amount * (_baseFee + _profitFee + _removeFee) / Math.PRECISION;
+        uint _feeAmount = _amount.mulDiv((_baseFee + _profitFee + _removeFee), Math.PRECISION);
         if(_feeAmount == 0) return _amount;
 
         feeReserves += _feeAmount;

@@ -179,7 +179,7 @@ contract VAMM is Governable {
     }
 
     function getPrice(address _indexToken) public view returns(uint) {
-        return pairs[_indexToken].stableAmount * Math.ACCURACY / pairs[_indexToken].indexAmount;
+        return pairs[_indexToken].stableAmount.mulDiv(Math.ACCURACY, pairs[_indexToken].indexAmount);
     }
 
     function preCalculatePrice(
@@ -201,7 +201,7 @@ contract VAMM is Governable {
             _outputIndexed = pair.indexAmount - newIndexAmount;
         }
 
-        markPrice = _sizeDelta * Math.ACCURACY / _outputIndexed;
+        markPrice = _sizeDelta.mulDiv(Math.ACCURACY, _outputIndexed);
     }
 
     function validatePriceDeviation(
@@ -212,8 +212,8 @@ contract VAMM is Governable {
         bool _init
     ) internal view {
         _referencePrice = _init ? _referencePrice : getPrice(_indexToken);
-        uint _newMarkPrice = _stableAmount * Math.ACCURACY / _indexAmount;
-        uint _maxPriceDelta = _referencePrice * allowedPriceDeviation / Math.PRECISION;
+        uint _newMarkPrice = _stableAmount.mulDiv(Math.ACCURACY, _indexAmount);
+        uint _maxPriceDelta = _referencePrice.mulDiv(allowedPriceDeviation, Math.PRECISION);
 
         _newMarkPrice > _referencePrice ? 
         require(_referencePrice + _maxPriceDelta >= _newMarkPrice, "VAMM: max deviation overflow") : 

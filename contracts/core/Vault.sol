@@ -165,13 +165,13 @@ contract Vault is FlashLoanModule {
         borrowMargin(_key, _margin);
         getEntryFunding(_key, _indexToken, _sizeDelta, _long);
 
-        uint _assetAmount = _sizeDelta * Math.ACCURACY / _markPrice;
+        uint _assetAmount = _sizeDelta.mulDiv(Math.ACCURACY, _markPrice);
 
-        if(position.size > 0) _assetAmount += position.size * Math.ACCURACY / position.entryPrice;
+        if(position.size > 0) _assetAmount += position.size.mulDiv(Math.ACCURACY, position.entryPrice);
 
         position.size += _sizeDelta;
         position.collateral += _collateralDelta;
-        position.entryPrice = position.size * Math.ACCURACY / _assetAmount;
+        position.entryPrice = position.size.mulDiv(Math.ACCURACY, _assetAmount);
         position.lastUpdateTime = block.timestamp;
 
         validateLeverage(position.size, position.collateral, _user);
@@ -392,7 +392,7 @@ contract Vault is FlashLoanModule {
                     }
                 }
 
-                _remainingLiquidationFee = _collateral * remainingLiquidationFee / Math.PRECISION; 
+                _remainingLiquidationFee = _collateral.mulDiv(remainingLiquidationFee, Math.PRECISION);
                 _collateral -= _remainingLiquidationFee; 
                 _remainingLiquidationFee += liquidationFee; 
             }
@@ -431,11 +431,11 @@ contract Vault is FlashLoanModule {
             return (_markPrice, true);
         }
 
-        uint _deviationToLiquidate = Math.PRECISION * Math.PRECISION / (position.size * Math.PRECISION  / _collateral); 
+        uint _deviationToLiquidate = Math.PRECISION.mulDiv(Math.PRECISION, (position.size * Math.PRECISION  / _collateral));
         
         liquidatePrice = _long ? 
         (Math.PRECISION * position.entryPrice - position.entryPrice * _deviationToLiquidate) / Math.PRECISION : 
-        position.entryPrice * (Math.PRECISION + _deviationToLiquidate) / Math.PRECISION;
+        position.entryPrice.mulDiv((Math.PRECISION + _deviationToLiquidate), Math.PRECISION);
 
         liquidatable = _long ? liquidatePrice >= _markPrice : _markPrice >= liquidatePrice;
     }
@@ -452,7 +452,7 @@ contract Vault is FlashLoanModule {
         (uint _markPrice, uint _entryPrice) = (IVAMM(VAMM).getPrice(_indexToken), position.entryPrice);
         (uint _fees, uint _delta) = calculateFees(_user, _indexToken, _long);
 
-        delta = position.size * getPriceDelta(_entryPrice, _markPrice) / _entryPrice;
+        delta = position.size.mulDiv(getPriceDelta(_entryPrice, _markPrice), _entryPrice);
         hasProfit = _long ? _markPrice > _entryPrice : _entryPrice > _markPrice;
         if(hasProfit){
             if(delta + _delta > _fees){
@@ -472,14 +472,14 @@ contract Vault is FlashLoanModule {
         bool _long, 
         bool _increase
     ) public view returns(uint) {
-        return _sizeDelta * calculateOperatingFee(_indexToken, _long, _increase) / Math.PRECISION;
+        return _sizeDelta.mulDiv(calculateOperatingFee(_indexToken, _long, _increase), Math.PRECISION);
     }
 
     function calculateOperatingFee(address _indexToken, bool _long, bool _increase) public view returns(uint) {
         if(zeroOperatingFee) return 0;
         uint _vammPrice = IVAMM(VAMM).getPrice(_indexToken);
         uint _feedPrice = IPriceFeed(priceFeed).getPrice(_indexToken);
-        uint _priceDelta = getPriceDelta(_vammPrice, _feedPrice) * Math.PRECISION / _vammPrice;
+        uint _priceDelta = getPriceDelta(_vammPrice, _feedPrice).mulDiv(Math.PRECISION, _vammPrice);
         if(_vammPrice > _feedPrice){
             if(_increase && _long || !_increase && !_long) return calculateOperatingFeeInternal(_priceDelta);
         }
@@ -515,7 +515,7 @@ contract Vault is FlashLoanModule {
     function calculateOperatingFeeInternal(uint _priceDelta) internal view returns(uint) {
         return _priceDelta >= maxOperatingFeePriceDeviation ? 
         MAX_BASE_OPERATING_FEE + baseOperatingFee : 
-        _priceDelta * operatingFeePriceMultiplier / Math.PRECISION + baseOperatingFee; 
+        _priceDelta.mulDiv(operatingFeePriceMultiplier, Math.PRECISION) + baseOperatingFee;
     }
 
     function calculateFees(

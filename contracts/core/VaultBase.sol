@@ -6,6 +6,7 @@ import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
 
 contract VaultBase is Governable { 
+    using Math for uint;
     
     uint public constant MIN_LEVERAGE = 11000; 
     uint public constant MIN_LIQUIDATION_FEE = 5e18; 
@@ -79,7 +80,7 @@ contract VaultBase is Governable {
     }
 
     function validateLeverage(uint _size, uint _collateral, address _user) internal view {
-        uint _usedLeverage = _size * Math.PRECISION  / _collateral; 
+        uint _usedLeverage = _size.mulDiv(Math.PRECISION, _collateral); 
 
         (bool _staker, uint _maxLeverage, , , , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
         if(!_staker) _maxLeverage = baseMaxLeverage;
@@ -93,7 +94,7 @@ contract VaultBase is Governable {
     }
 
     function calculatePoolIncrease(uint _totalPool, uint _rate, uint _lastUpdate) internal view returns(uint) {
-        return (_totalPool * _rate * ((block.timestamp - _lastUpdate) * Math.ACCURACY / Math.ONE_YEAR)) / Math.DOUBLE_ACC;
+        return (_totalPool * _rate * ((block.timestamp - _lastUpdate).mulDiv(Math.ACCURACY, Math.ONE_YEAR))) / Math.DOUBLE_ACC;
     }
 
     function validatePoolShares(

@@ -81,6 +81,6 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
         (bool _staker, , , , , uint _flashLoanFee) = IUtilityStorage(utilityStorage).getUserUtility(_user);
         if(_staker && _flashLoanFee > 0) _loanFee /= _flashLoanFee;
 
-        fee = _amount * _loanFee / LOCAL_DENOMINATOR;
+        fee = _amount.mulDiv(_loanFee, LOCAL_DENOMINATOR);
     }
 }

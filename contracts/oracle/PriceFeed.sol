@@ -10,6 +10,7 @@ import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
 
 contract PriceFeed is Governable, ReentrancyGuard {
+    using Math for uint;
 
     uint public constant ACCURACY = 1e18;
     uint public constant PRECISION = 10000;
@@ -190,7 +191,7 @@ contract PriceFeed is Governable, ReentrancyGuard {
         }
 
         validatePrice(int(_price));
-        return _price * ACCURACY / (10 ** config.priceDecimals);
+        return _price.mulDiv(ACCURACY, (10 ** config.priceDecimals));
     }
 
     function getFastPrice(address _indexToken, uint _referencePrice) public view returns(uint) {
@@ -209,10 +210,10 @@ contract PriceFeed is Governable, ReentrancyGuard {
         if(_reserve0 * _reserve1 == 0) return 0;
 
         price = _indexToken == IUniswapV2Pair(_pool).token0() ? 
-        _reserve0 * Math.ACCURACY / _reserve1 : 
-        _reserve1 * Math.ACCURACY / _reserve0;
+        _reserve0.mulDiv(Math.ACCURACY, _reserve1) : 
+        _reserve1.mulDiv(Math.ACCURACY, _reserve0);
 
-        return price * ACCURACY / (10 ** config.poolDecimals);
+        return price.mulDiv(ACCURACY, (10 ** config.poolDecimals));
     }
 
     function validatePoolAddress(address _indexToken, address _pool) internal view {

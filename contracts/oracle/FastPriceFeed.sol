@@ -240,11 +240,7 @@ contract FastPriceFeed is Governable {
         require(_indexTokens.length == whitelistedTokensCount, "FastPriceFeed: invalid tokens array length");
         bool shouldUpdate = shouldUpdatePrices(_timestamp);
 
-        if(shouldUpdate){
-            for (uint i = 0; i < _indexTokens.length; i++) {
-                setPrice(_indexTokens[i], _prices[i]);
-            }
-        }
+        if(shouldUpdate) for(uint i = 0; i < _indexTokens.length; i++) setPrice(_indexTokens[i], _prices[i]);
     }
 
     function getPrice(address _indexToken, uint _refPrice) external view returns(uint) {
