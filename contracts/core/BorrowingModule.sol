@@ -101,10 +101,13 @@ contract BorrowingModule is VaultBase {
         uint _sharePoolDecrease = _margin.mulDiv(borrowPool, totalBorrows);
         Position storage position = positions[_key];
         if(shouldValidatePoolShares) validatePoolShares(totalBorrows, _margin, borrowPool, _sharePoolDecrease, position.borrowed);
+
         _sharePoolDecrease >= position.borrowed ? 
         position.borrowed = 0 : position.borrowed -= _sharePoolDecrease;
+
         _sharePoolDecrease >= borrowPool ? 
         borrowPool = Math.INIT_LOCK_AMOUNT : borrowPool -= _sharePoolDecrease;
+        
         _margin >= totalBorrows ? 
         totalBorrows = Math.INIT_LOCK_AMOUNT : totalBorrows -= _margin;
     }

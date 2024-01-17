@@ -181,7 +181,7 @@ contract LPStaking is Governable, ReentrancyGuard {
             calculateUserBaseReward(_user),
             calculateUserExtraReward(_user),
             stake.amountShares,
-            preUpdateUserTimeShares(_user),
+            stake.lastTimestamp == 0 ? 0 : stake.timeShares + (block.timestamp - stake.lastTimestamp),
             stake.stakeStart,
             stake.lockDuration,
             stake.lastTimestamp
@@ -198,8 +198,7 @@ contract LPStaking is Governable, ReentrancyGuard {
 
     function preUpdateUserTimeShares(address _user) public view returns(uint) {
         Stake memory stake = stakers[_user];
-        if(stake.lastTimestamp == 0) return 0; 
-        return stake.timeShares + (block.timestamp - stake.lastTimestamp);
+        return stake.lastTimestamp == 0 ? 0 : stake.timeShares + (block.timestamp - stake.lastTimestamp);
     }
 
     function calculateUserBaseReward(address _user) public view returns(uint) {

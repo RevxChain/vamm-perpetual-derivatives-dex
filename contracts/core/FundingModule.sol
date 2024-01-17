@@ -173,10 +173,13 @@ contract FundingModule is BorrowingModule {
                     _sharePoolDecrease, 
                     position.entryFunding
                 );
+
                 _sharePoolDecrease >= position.entryFunding ? 
                 position.entryFunding = 0 : position.entryFunding -= _sharePoolDecrease; 
+
                 _sharePoolDecrease >= funding.fundingLongSharePool ? 
                 funding.fundingLongSharePool = Math.INIT_LOCK_AMOUNT : funding.fundingLongSharePool -= _sharePoolDecrease;
+
                 _userFundingFeeDebt >= funding.totalLongFunding ? 
                 funding.totalLongFunding = Math.INIT_LOCK_AMOUNT : funding.totalLongFunding -= _userFundingFeeDebt;
             } else {
@@ -188,10 +191,13 @@ contract FundingModule is BorrowingModule {
                     _sharePoolDecrease, 
                     position.entryFunding
                 );
+
                 _sharePoolDecrease >= position.entryFunding ? 
                 position.entryFunding = 0 : position.entryFunding -= _sharePoolDecrease; 
+
                 _sharePoolDecrease >= funding.fundingShortSharePool ? 
                 funding.fundingShortSharePool = Math.INIT_LOCK_AMOUNT : funding.fundingShortSharePool -= _sharePoolDecrease;
+                
                 _userFundingFeeDebt >= funding.totalShortFunding ? 
                 funding.totalShortFunding = Math.INIT_LOCK_AMOUNT : funding.totalShortFunding -= _userFundingFeeDebt;
             }

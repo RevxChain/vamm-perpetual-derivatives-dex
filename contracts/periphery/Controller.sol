@@ -58,9 +58,7 @@ contract Controller is Governable, ReentrancyGuard {
     }
 
     function setErrors(string[] calldata _errors) external onlyHandler(gov) {
-        for (uint i = 0; _errors.length > i; i++) {
-            IVault(vault).setError(i, _errors[i]);
-        }
+        for(uint i; _errors.length > i; i++) IVault(vault).setError(i, _errors[i]);
     }
 
     function setTokenConfig(

@@ -93,6 +93,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
             lpAmount = _amount.sqrt();
             _mint(vault, Math.INIT_LOCK_AMOUNT);
         }
+        
         _mint(_user, lpAmount);
         lastAdded[_user] = block.timestamp;
         IERC20(stable).safeTransferFrom(_user, vault, _underlyingAmount);
