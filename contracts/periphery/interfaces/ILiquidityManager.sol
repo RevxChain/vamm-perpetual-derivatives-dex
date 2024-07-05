@@ -31,29 +31,29 @@ interface ILiquidityManager {
         uint totalPositionsDeltaKink;
     }
 
-    function setNewImplementation(address _implementation, string calldata _strategy) external;
+    function setNewImplementation(address newImplementation, string calldata newStrategy) external;
 
-    function setStrategySettings(Settings calldata _addSetup, Settings calldata _removeSetup) external;
+    function setStrategySettings(Settings calldata addSetup, Settings calldata removeSetup) external;
 
-    function setUsageEnabled(bool _enabled) external;
+    function setUsageEnabled(bool enabled) external;
 
-    function setAutoUsageEnabled(bool _enabled) external;
+    function setAutoUsageEnabled(bool enabled) external;
 
-    function setManualUsageEnabled(bool _enabled) external;
+    function setManualUsageEnabled(bool enabled) external;
 
-    function setTotalPositionsConsider(bool _consider) external;
+    function setTotalPositionsConsider(bool consider) external;
 
-    function provideLiquidity(uint _amount) external;
+    function provideLiquidity(uint amount) external;
 
-    function removeLiquidity(uint _amount) external returns(bool success, uint earnedAmount);
+    function removeLiquidity(uint amount) external returns(bool success, uint earnedAmount);
 
     function manualProvideLiquidity() external;
 
     function manualRemoveLiquidity() external;
 
-    function checkUsage(bool _auto) external view returns(bool allowed, uint amount);
+    function checkUsage(bool autoUsage) external view returns(bool allowed, uint amount);
     
-    function checkRemove(bool _auto) external view returns(bool allowed, uint amount);
+    function checkRemove(bool autoUsage) external view returns(bool allowed, uint amount);
 
     function getVaultState() external view returns(uint poolAmount, uint availableLiquidity, uint utilizationRate);
 

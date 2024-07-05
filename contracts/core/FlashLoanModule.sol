@@ -4,8 +4,9 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import "../periphery/interfaces/IDebtor.sol";
 import "./FundingModule.sol";
+
+import "../periphery/interfaces/IDebtor.sol";
 
 contract FlashLoanModule is FundingModule, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -21,19 +22,19 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
 
     bool public flashLoanEnabled;
 
-    function setMinAmountToLoan(uint _minAmountToLoan) external onlyHandlers() {
-        validate(_minAmountToLoan > 0, 33);
-        minAmountToLoan = _minAmountToLoan;
+    function setMinAmountToLoan(uint newMinAmountToLoan) external onlyHandlers() {
+        validate(newMinAmountToLoan > 0, 33);
+        minAmountToLoan = newMinAmountToLoan;
     }
 
-    function setFlashLoanEnabled(bool _enabled) external onlyHandlers() {
-        flashLoanEnabled = _enabled;
+    function setFlashLoanEnabled(bool enable) external onlyHandlers() {
+        flashLoanEnabled = enable;
     }
 
-    function setBaseLoanFee(uint _baseFee) external onlyHandler(dao) {
-        validate(_baseFee >= MIN_LOAN_FEE, 34);
-        validate(MAX_LOAN_FEE >= _baseFee, 35);
-        baseLoanFee = _baseFee;
+    function setBaseLoanFee(uint newBaseLoanFee) external onlyHandler(dao) {
+        validate(newBaseLoanFee >= MIN_LOAN_FEE, 34);
+        validate(MAX_LOAN_FEE >= newBaseLoanFee, 35);
+        baseLoanFee = newBaseLoanFee;
     }
 
     function withdrawProtocolFees() external onlyHandler(gov) nonReentrant() {
@@ -46,22 +47,22 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
         feeReserves = 0;
     }
 
-    function flashLoan(uint _amount, bytes calldata _data) external nonReentrant() returns(uint fee, uint income) {
+    function flashLoan(uint amount, bytes calldata data) external nonReentrant() returns(uint fee, uint income) {
         address _debtor = msg.sender;
         validate(flashLoanEnabled, 36);
-        validate(_amount >= minAmountToLoan, 37);
+        validate(amount >= minAmountToLoan, 37);
         validate(_debtor != tx.origin, 38);
-        validate(poolAmount >= _amount, 39);
+        validate(poolAmount >= amount, 39);
         uint _balanceBefore = IERC20(stable).balanceOf(address(this));
-        validate(_balanceBefore >= _amount, 40);
+        validate(_balanceBefore >= amount, 40);
 
-        fee = calculateFlashLoanFee(_amount, tx.origin);
+        fee = calculateFlashLoanFee(amount, tx.origin);
 
         (uint _poolBefore, uint _borrowsBefore, uint _borrowPoolBefore) = (poolAmount, totalBorrows, borrowPool);
 
-        IERC20(stable).safeTransfer(_debtor, _amount);
-        IDebtor(_debtor).executeFlashLoan(_amount, fee, _data);
-        IERC20(stable).safeTransferFrom(_debtor, address(this), _amount + fee);
+        IERC20(stable).safeTransfer(_debtor, amount);
+        IDebtor(_debtor).executeFlashLoan(amount, fee, data);
+        IERC20(stable).safeTransferFrom(_debtor, address(this), amount + fee);
 
         uint _balanceAfter = IERC20(stable).balanceOf(address(this));
         (uint _poolAfter, uint _borrowsAfter, uint _borrowPoolAfter) = (poolAmount, totalBorrows, borrowPool);
@@ -75,12 +76,12 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
         protocolFeeReserves += income;
     }
 
-    function calculateFlashLoanFee(uint _amount, address _user) public view returns(uint fee) {
+    function calculateFlashLoanFee(uint amount, address user) public view returns(uint fee) {
         uint _loanFee = baseLoanFee;
 
-        (bool _staker, , , , , uint _flashLoanFee) = IUtilityStorage(utilityStorage).getUserUtility(_user);
+        (bool _staker, , , , , uint _flashLoanFee) = IUtilityStorage(utilityStorage).getUserUtility(user);
         if(_staker && _flashLoanFee > 0) _loanFee /= _flashLoanFee;
 
-        fee = _amount.mulDiv(_loanFee, LOCAL_DENOMINATOR);
+        fee = amount.mulDiv(_loanFee, LOCAL_DENOMINATOR);
     }
 }

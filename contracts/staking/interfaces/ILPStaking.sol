@@ -17,33 +17,33 @@ interface ILPStaking {
     function stakedToken() external view returns(address); 
     function rewardToken() external view returns(address);
     
-    function setMinLockDuration(uint _minLockDuration) external;
+    function setMinLockDuration(uint newMinLockDuration) external;
 
-    function setExtraRate(uint _extraRate) external;
+    function setExtraRate(uint newExtraRate) external;
 
-    function stakeLP(uint _amount, uint _lockDuration) external;
+    function stakeLP(uint amount, uint lockDuration) external;
 
-    function collectRewards(bool _baseReward, bool _extraReward) external;
+    function collectRewards(bool baseReward, bool extraReward) external;
 
     function unstakeLP() external;
 
-    function addRewards(uint _amount, uint _extraAmount) external;
+    function addRewards(uint amount, uint extraAmount) external;
 
     function preUpdateInitShares() external view returns(uint);
 
     function preUpdateTimeSharesPool() external view returns(uint);
 
-    function preUpdateUserTimeShares(address _user) external view returns(uint);
+    function preUpdateUserTimeShares(address user) external view returns(uint);
 
-    function calculateUserBaseReward(address _user) external view returns(uint);
+    function calculateUserBaseReward(address user) external view returns(uint);
 
-    function calculateUserExtraReward(address _user) external view returns(uint);
+    function calculateUserExtraReward(address user) external view returns(uint);
 
-    function calculateUserAmount(address _user) external view returns(uint);
+    function calculateUserAmount(address user) external view returns(uint);
 
-    function calculateUserRate(address _user) external view returns(uint);
+    function calculateUserRate(address user) external view returns(uint);
 
-    function getUserStakeInfo(address _user) external view returns(
+    function getUserStakeInfo(address user) external view returns(
         uint underlyingBalance,
         uint totalBalance,
         uint baseReward,

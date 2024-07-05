@@ -10,9 +10,9 @@ import "./interfaces/IDebtor.sol";
 contract Debtor is IDebtor, Ownable {
     using SafeERC20 for IERC20;
 
-    uint public balance;
-    uint public amount;
-    uint public fee;
+    uint public sBalance;
+    uint public sAmount;
+    uint public sFee;
 
     address public immutable stable;
     address public immutable vault;
@@ -26,39 +26,39 @@ contract Debtor is IDebtor, Ownable {
 
     receive() external payable {}
 
-    function loan(uint _amount, bytes calldata _data) external payable onlyOwner() {
+    function loan(uint amount, bytes calldata data) external payable onlyOwner() {
         require(!locked, "Debtor: locked");
-        (locked, amount, balance, fee) = (true, _amount, IERC20(stable).balanceOf(address(this)), calculateActualFee(_amount));
+        (locked, sAmount, sBalance, sFee) = (true, amount, IERC20(stable).balanceOf(address(this)), calculateActualFee(amount));
 
-        IVault(vault).flashLoan(_amount, _data);
+        IVault(vault).flashLoan(amount, data);
 
-        (locked, amount, balance, fee) = (false, 0, 0, 0);
+        (locked, sAmount, sBalance, sFee) = (false, 0, 0, 0);
     }
 
-    function executeFlashLoan(uint _amount, uint _fee, bytes calldata /*_data*/) external {
+    function executeFlashLoan(uint amount, uint fee, bytes calldata /*data*/) external {
         require(tx.origin == owner(), "Debtor: invalid tx sender");
         require(msg.sender == vault, "Debtor: invalid msg sender");
-        require(amount == _amount, "Debtor: wrong amount");
-        require(fee == _fee, "Debtor: wrong fee");
+        require(sAmount == amount, "Debtor: wrong amount");
+        require(sFee == fee, "Debtor: wrong fee");
         require(locked, "Debtor: should locked");
-        require(IERC20(stable).balanceOf(address(this)) >= balance + _amount, "Debtor: invalid input balance");
+        require(IERC20(stable).balanceOf(address(this)) >= sBalance + amount, "Debtor: invalid input balance");
 
         // logic
 
-        require(IERC20(stable).balanceOf(address(this)) >= _amount + _fee, "Debtor: invalid output balance");
-        IERC20(stable).approve(vault, _amount + _fee);
+        require(IERC20(stable).balanceOf(address(this)) >= amount + fee, "Debtor: invalid output balance");
+        IERC20(stable).approve(vault, amount + fee);
     }
 
-    function withdraw(address _token, uint _amount, address payable _receiver) external onlyOwner() {
-        _token != address(0) ? IERC20(_token).safeTransfer(_receiver, _amount) : safeTransfer(_receiver, _amount);
+    function withdraw(address token, uint amount, address payable receiver) external onlyOwner() {
+        token != address(0) ? IERC20(token).safeTransfer(receiver, amount) : safeTransfer(receiver, amount);
     }
 
-    function calculateActualFee(uint _amount) public view returns(uint) {
-        return IVault(vault).calculateFlashLoanFee(_amount, owner());
+    function calculateActualFee(uint amount) public view returns(uint) {
+        return IVault(vault).calculateFlashLoanFee(amount, owner());
     }
 
-    function safeTransfer(address payable _receiver, uint _value) internal {
-        (bool _success, ) = _receiver.call{value: _value}(new bytes(0));
+    function safeTransfer(address payable receiver, uint value) internal {
+        (bool _success, ) = receiver.call{value: value}(new bytes(0));
         require(_success, "Debtor: ETH transfer failed");
     }
 }

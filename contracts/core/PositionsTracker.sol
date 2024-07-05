@@ -4,9 +4,10 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "../libraries/Governable.sol";
+import "../libraries/Math.sol";
+
 import "./interfaces/IVault.sol";
 import "./interfaces/IVAMM.sol";
-import "../libraries/Math.sol";
 
 contract PositionsTracker is Governable, ReentrancyGuard {
     using Math for uint;
@@ -41,8 +42,8 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         uint maxTotalShortSizes;
     }
 
-    modifier whitelisted(address _token, bool _include) {
-        require(whitelistedToken[_token] == _include, "PositionsTracker: not whitelisted");
+    modifier whitelisted(address token, bool include) {
+        require(whitelistedToken[token] == include, "PositionsTracker: not whitelisted");
         _;
     }
 
@@ -67,103 +68,102 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         liquidityDeviation = 1000;
     }
 
-    function setUpdater(address _updater, bool _bool) external onlyHandlers() {
-        updaters[_updater] = _bool;
+    function setUpdater(address updater, bool set) external onlyHandlers() {
+        updaters[updater] = set;
     }
 
-    function setDeltaDuration(uint _deltaDuration) external onlyHandlers() {
-        require(MAX_DELTA_DURATION >= _deltaDuration, "PositionsTracker: invalid deltaDuration");
-        deltaDuration = _deltaDuration;
+    function setDeltaDuration(uint newDeltaDuration) external onlyHandlers() {
+        require(MAX_DELTA_DURATION >= newDeltaDuration, "PositionsTracker: invalid deltaDuration");
+        deltaDuration = newDeltaDuration;
     }
 
-    function setLiquidityDeviation(uint _liquidityDeviation) external onlyHandlers() {
-        require(MAX_LIQUIDITY_DEVIATION >= _liquidityDeviation, "PositionsTracker: invalid liquidityDeviation");
-        liquidityDeviation = _liquidityDeviation;
+    function setLiquidityDeviation(uint newLiquidityDeviation) external onlyHandlers() {
+        require(MAX_LIQUIDITY_DEVIATION >= newLiquidityDeviation, "PositionsTracker: invalid liquidityDeviation");
+        liquidityDeviation = newLiquidityDeviation;
     }
 
     function setTokenConfig(
-        address _indexToken,
-        uint _maxTotalLongSizes,
-        uint _maxTotalShortSizes
-    ) external onlyHandler(controller) whitelisted(_indexToken, false) {   
-        Config storage config = configs[_indexToken];
-        whitelistedToken[_indexToken] = true;
-        config.maxTotalLongSizes = _maxTotalLongSizes;
-        config.maxTotalShortSizes = _maxTotalShortSizes;
+        address indexToken,
+        uint maxTotalLongSizes,
+        uint maxTotalShortSizes
+    ) external onlyHandler(controller) whitelisted(indexToken, false) {   
+        Config storage config = configs[indexToken];
+        whitelistedToken[indexToken] = true;
+        config.maxTotalLongSizes = maxTotalLongSizes;
+        config.maxTotalShortSizes = maxTotalShortSizes;
         whitelistedTokensCount += 1;
     }
 
-    function deleteTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, true) {   
-        whitelistedToken[_indexToken] = false;
+    function deleteTokenConfig(address indexToken) external onlyHandler(controller) whitelisted(indexToken, true) {   
+        whitelistedToken[indexToken] = false;
         whitelistedTokensCount -= 1;
 
-        delete configs[_indexToken];
+        delete configs[indexToken];
     }
 
     function setMaxTotalSizes(
-        address _indexToken, 
-        uint _maxTotalLongSizes, 
-        uint _maxTotalShortSizes
-    ) external onlyHandlers() whitelisted(_indexToken, true) {
-        Config storage config = configs[_indexToken];
-        require(_maxTotalLongSizes > config.totalLongSizes, "PositionsTracker: actual long sizes exceeded");
-        require(_maxTotalShortSizes > config.totalShortSizes, "PositionsTracker: actual short sizes exceeded");
-        config.maxTotalLongSizes = _maxTotalLongSizes;
-        config.maxTotalShortSizes = _maxTotalShortSizes;
+        address indexToken, 
+        uint maxTotalLongSizes, 
+        uint maxTotalShortSizes
+    ) external onlyHandlers() whitelisted(indexToken, true) {
+        Config storage config = configs[indexToken];
+        require(maxTotalLongSizes > config.totalLongSizes, "PositionsTracker: actual long sizes exceeded");
+        require(maxTotalShortSizes > config.totalShortSizes, "PositionsTracker: actual short sizes exceeded");
+        config.maxTotalLongSizes = maxTotalLongSizes;
+        config.maxTotalShortSizes = maxTotalShortSizes;
     }
 
     function increaseTotalSizes(
-        address _indexToken, 
-        uint _sizeDelta, 
-        uint _markPrice, 
-        bool _long
+        address indexToken, 
+        uint sizeDelta, 
+        uint markPrice, 
+        bool long
     ) external onlyHandler(VAMM) {
-        Config storage config = configs[_indexToken];
-        uint _assetsAmount = _sizeDelta / _markPrice;
-        if(_long){
+        Config storage config = configs[indexToken];
+        uint _assetsAmount = sizeDelta / markPrice;
+        if(long){
             require(
-                config.maxTotalLongSizes > config.totalLongSizes + _sizeDelta, 
+                config.maxTotalLongSizes > config.totalLongSizes + sizeDelta, 
                 "PositionsTracker: actual long sizes exceeded"
             );
-            config.totalLongSizes += _sizeDelta; 
+            config.totalLongSizes += sizeDelta; 
             config.totalLongAssets += _assetsAmount;
         } else {
             require(
-                config.maxTotalShortSizes > config.totalShortSizes + _sizeDelta, 
+                config.maxTotalShortSizes > config.totalShortSizes + sizeDelta, 
                 "PositionsTracker: actual short sizes exceeded"
             );
-            config.totalShortSizes += _sizeDelta;
+            config.totalShortSizes += sizeDelta;
             config.totalShortAssets += _assetsAmount;
         }
     }
 
     function decreaseTotalSizes(
-        address _indexToken, 
-        uint _sizeDelta, 
-        uint _markPrice, 
-        bool _long
+        address indexToken, 
+        uint sizeDelta, 
+        uint markPrice, 
+        bool long
     ) external onlyHandler(VAMM) {
-        Config storage config = configs[_indexToken];
-        uint _assetsAmount = _sizeDelta / _markPrice;
-        if(_long){
-            config.totalLongSizes -= _sizeDelta; 
+        Config storage config = configs[indexToken];
+        uint _assetsAmount = sizeDelta / markPrice;
+        if(long){
+            config.totalLongSizes -= sizeDelta; 
             config.totalLongAssets > _assetsAmount ? config.totalLongAssets -= _assetsAmount : 0;
         } else {
-            config.totalShortSizes -= _sizeDelta;
+            config.totalShortSizes -= sizeDelta;
             config.totalShortAssets > _assetsAmount ? config.totalShortAssets -= _assetsAmount : 0;
         }
     }
 
-    function updateTotalPositionsProfit(address[] calldata _indexTokens) external onlyUpdater() {
-        require(_indexTokens.length == whitelistedTokensCount, "PositionsTracker: invalid tokens array length");
-        (hasTradersProfit, totalPositionsDelta) = calculateProfits(_indexTokens);
+    function updateTotalPositionsProfit(address[] calldata indexTokens) external onlyUpdater() {
+        require(indexTokens.length == whitelistedTokensCount, "PositionsTracker: invalid tokens array length");
+        (hasTradersProfit, totalPositionsDelta) = calculateProfits(indexTokens);
         lastPoolAmount = IVault(vault).poolAmount();
         lastUpdatedTime = block.timestamp;
     } 
 
     function getPositionsData() external view returns(bool, bool, uint) {
-        bool _isActual = true;
-        uint _poolAmount = IVault(vault).poolAmount();
+        (bool _isActual, uint _poolAmount) = (true, IVault(vault).poolAmount());
 
         (, uint _delta) = calculateDelta(lastPoolAmount, _poolAmount);
 
@@ -173,11 +173,11 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         return (_isActual, hasTradersProfit, totalPositionsDelta);
     }
 
-    function calculateProfits(address[] calldata _indexTokens) internal view returns(bool hasProfit, uint delta) {
+    function calculateProfits(address[] calldata indexTokens) internal view returns(bool hasProfit, uint delta) {
         uint _totalSizes;
         int _totalDelta;
-        for(uint i; _indexTokens.length > i; i++){
-            (uint _size, int _delta) = calculateProfit(_indexTokens[i]);
+        for(uint i; indexTokens.length > i; i++){
+            (uint _size, int _delta) = calculateProfit(indexTokens[i]);
             _totalSizes += _size;
             _totalDelta += _delta;
         }
@@ -192,10 +192,10 @@ contract PositionsTracker is Governable, ReentrancyGuard {
     }
 
     function calculateProfit(
-        address _indexToken
-    ) internal view whitelisted(_indexToken, true) returns(uint totalSizes, int delta) {
-        Config memory config = configs[_indexToken];
-        uint _markPrice = IVAMM(VAMM).getPrice(_indexToken);
+        address indexToken
+    ) internal view whitelisted(indexToken, true) returns(uint totalSizes, int delta) {
+        Config memory config = configs[indexToken];
+        uint _markPrice = IVAMM(VAMM).getPrice(indexToken);
         
         if(config.totalLongAssets > 0){
             uint _longAveragePrice = config.totalLongSizes / config.totalLongAssets;
@@ -215,8 +215,9 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         } 
     }
 
-    function calculateDelta(uint _num, uint _refNum) internal pure returns(uint delta, uint pDelta) {
-        delta = _num > _refNum ? _num - _refNum : _refNum - _num;
-        pDelta = delta.mulDiv(Math.PRECISION, _num);
+    function calculateDelta(uint num, uint refNum) internal pure returns(uint delta, uint pDelta) {
+        delta = num > refNum ? num - refNum : refNum - num;
+        if(delta == 0) return (0, 0);
+        pDelta = delta.mulDiv(Math.PRECISION, num);
     }
 }

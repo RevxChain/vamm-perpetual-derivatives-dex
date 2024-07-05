@@ -10,13 +10,13 @@ contract Governable {
     event NewGov(address newGov, uint time);
     event NewDao(address newDao, uint time);
 
-    modifier validateAddress(address _address) {
-        require(_address != address(0) && _address != address(this), "Governable: invalid address");
+    modifier validateAddress(address target) {
+        require(target != address(0) && target != address(this), "Governable: invalid address");
         _;
     }
 
-    modifier onlyHandler(address _handler) {
-        require(msg.sender == _handler, "Governable: invalid handler");
+    modifier onlyHandler(address handler) {
+        require(msg.sender == handler, "Governable: invalid handler");
         _;
     }
 
@@ -33,15 +33,15 @@ contract Governable {
         emit NewDao(msg.sender, block.timestamp);
     }
 
-    function setGov(address _gov) external onlyHandlers() validateAddress(_gov) {
-        gov = _gov;
+    function setGov(address newGov) external onlyHandlers() validateAddress(newGov) {
+        gov = newGov;
 
-        emit NewGov(_gov, block.timestamp);
+        emit NewGov(newGov, block.timestamp);
     }
 
-    function setDao(address _dao) external onlyHandler(dao) validateAddress(_dao) {
-        dao = _dao;
+    function setDao(address newDao) external onlyHandler(dao) validateAddress(newDao) {
+        dao = newDao;
 
-        emit NewDao(_dao, block.timestamp);
+        emit NewDao(newDao, block.timestamp);
     }
 }

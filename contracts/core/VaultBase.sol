@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "../staking/interfaces/IUtilityStorage.sol";
 import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
+
+import "../staking/interfaces/IUtilityStorage.sol";
 
 contract VaultBase is Governable { 
     using Math for uint;
@@ -46,91 +47,91 @@ contract VaultBase is Governable {
         uint lastUpdateTime; 
     }
 
-    function setBaseMaxLeverage(uint _baseMaxLeverage) external onlyHandler(dao) {
-        validate(_baseMaxLeverage >= MIN_LEVERAGE, 2);
-        baseMaxLeverage = _baseMaxLeverage;
+    function setBaseMaxLeverage(uint newBaseMaxLeverage) external onlyHandler(dao) {
+        validate(newBaseMaxLeverage >= MIN_LEVERAGE, 2);
+        baseMaxLeverage = newBaseMaxLeverage;
     }
 
-    function setLiquidationFee(uint _liquidationFee) external onlyHandler(dao) {
-        validate(_liquidationFee >= MIN_LIQUIDATION_FEE, 3);
-        validate(MAX_LIQUIDATION_FEE >= _liquidationFee, 4);
-        liquidationFee = _liquidationFee;
+    function setLiquidationFee(uint newLiquidationFee) external onlyHandler(dao) {
+        validate(newLiquidationFee >= MIN_LIQUIDATION_FEE, 3);
+        validate(MAX_LIQUIDATION_FEE >= newLiquidationFee, 4);
+        liquidationFee = newLiquidationFee;
     }
 
-    function setRemainingLiquidationFee(uint _remainingLiquidationFee) external onlyHandler(dao) {
-        validate(MAX_REMAINING_LIQUIDATION_FEE >= _remainingLiquidationFee, 8);
-        remainingLiquidationFee = _remainingLiquidationFee;
+    function setRemainingLiquidationFee(uint newRemainingLiquidationFee) external onlyHandler(dao) {
+        validate(MAX_REMAINING_LIQUIDATION_FEE >= newRemainingLiquidationFee, 8);
+        remainingLiquidationFee = newRemainingLiquidationFee;
     }
 
-    function setMinChangeTime(uint _minChangeTime) external onlyHandlers() {
-        validate(MAX_CHANGE_TIME >= _minChangeTime, 14);
-        minChangeTime = _minChangeTime;
+    function setMinChangeTime(uint newMinChangeTime) external onlyHandlers() {
+        validate(MAX_CHANGE_TIME >= newMinChangeTime, 14);
+        minChangeTime = newMinChangeTime;
     } 
 
-    function setPoolSharesValidation(bool _shouldValidatePoolShares) external onlyHandlers() {
-        shouldValidatePoolShares = _shouldValidatePoolShares;
+    function setPoolSharesValidation(bool enableShouldValidatePoolShares) external onlyHandlers() {
+        shouldValidatePoolShares = enableShouldValidatePoolShares;
     }
 
-    function setError(uint _errorCode, string calldata _error) external onlyHandler(controller) {
-        errors[_errorCode] = _error;
+    function setError(uint errorCode, string calldata errorMsg) external onlyHandler(controller) {
+        errors[errorCode] = errorMsg;
     }
 
-    function calculatePositionKey(address _user, address _indexToken, bool _long) public pure returns(bytes32) {
-        return keccak256(abi.encodePacked(_user, _indexToken, _long));
+    function calculatePositionKey(address user, address indexToken, bool long) public pure returns(bytes32) {
+        return keccak256(abi.encodePacked(user, indexToken, long));
     }
 
-    function validateLeverage(uint _size, uint _collateral, address _user) internal view {
-        uint _usedLeverage = _size.mulDiv(Math.PRECISION, _collateral); 
+    function validateLeverage(uint size, uint collateral, address user) internal view {
+        uint _usedLeverage = size.mulDiv(Math.PRECISION, collateral); 
 
-        (bool _staker, uint _maxLeverage, , , , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
+        (bool _staker, uint _maxLeverage, , , , ) = IUtilityStorage(utilityStorage).getUserUtility(user);
         if(!_staker) _maxLeverage = baseMaxLeverage;
 
         validate(_usedLeverage >= MIN_LEVERAGE, 23);
         validate(_maxLeverage >= _usedLeverage, 24);
     }
 
-    function validateLastUpdateTime(uint _lastUpdateTime) internal view {
-        if(_lastUpdateTime > 0) validate(block.timestamp > _lastUpdateTime + minChangeTime, 15);
+    function validateLastUpdateTime(uint lastUpdateTime) internal view {
+        if(lastUpdateTime > 0) validate(block.timestamp > lastUpdateTime + minChangeTime, 15);
     }
 
-    function calculatePoolIncrease(uint _totalPool, uint _rate, uint _lastUpdate) internal view returns(uint) {
-        return (_totalPool * _rate * ((block.timestamp - _lastUpdate).mulDiv(Math.ACCURACY, Math.ONE_YEAR))) / Math.DOUBLE_ACC;
+    function calculatePoolIncrease(uint totalPool, uint rate, uint lastUpdate) internal view returns(uint) {
+        return (totalPool * rate * ((block.timestamp - lastUpdate).mulDiv(Math.ACCURACY, Math.ONE_YEAR))) / Math.DOUBLE_ACC;
     }
 
     function validatePoolShares(
-        uint _total, 
-        uint _userDebt, 
-        uint _sharePool, 
-        uint _userShareDecrease, 
-        uint _userEntryShare
+        uint total, 
+        uint userDebt, 
+        uint sharePool, 
+        uint userShareDecrease, 
+        uint userEntryShare
     ) internal view {
-        validate(_total >= _userDebt, 26);
-        validate(_sharePool >= _userShareDecrease, 27);
-        validate(_userEntryShare >= _userShareDecrease, 28);
+        validate(total >= userDebt, 26);
+        validate(sharePool >= userShareDecrease, 27);
+        validate(userEntryShare >= userShareDecrease, 28);
     }
 
-    function validate(bool _condition, uint _errorCode) internal view {
-        require(_condition, errors[_errorCode]);
+    function validate(bool condition, uint errorCode) internal view {
+        require(condition, errors[errorCode]);
     }
 
-    function calculateFeesAndDelta(bool _hasProfit, uint _fees, uint _delta) internal pure returns(uint, uint) {
-        if(_hasProfit){
-            if(_fees >= _delta){
-                _fees -= _delta;
-                _delta = 0;
+    function calculateFeesAndDelta(bool hasProfit, uint fees, uint delta) internal pure returns(uint, uint) {
+        if(hasProfit){
+            if(fees >= delta){
+                fees -= delta;
+                delta = 0;
             } else {
-                _delta -= _fees;
-                _fees = 0;
+                delta -= fees;
+                fees = 0;
             }
         } else {
-            _fees += _delta;
-            _delta = 0;
+            fees += delta;
+            delta = 0;
         }
 
-        return (_fees, _delta);
+        return (fees, delta);
     }  
 
-    function getPriceDelta(uint _price, uint _refPrice) internal pure returns(uint delta) {
-        return _price > _refPrice ? _price - _refPrice : _refPrice - _price;
+    function getPriceDelta(uint price, uint refPrice) internal pure returns(uint delta) {
+        return price > refPrice ? price - refPrice : refPrice - price;
     }
 }

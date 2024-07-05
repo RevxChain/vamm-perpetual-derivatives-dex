@@ -6,9 +6,10 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import "../libraries/Governable.sol";
+import "../libraries/Math.sol";
+
 import "./interfaces/IVault.sol";
 import "./interfaces/IVAMM.sol";
-import "../libraries/Math.sol";
 
 contract OrderBook is Governable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -57,8 +58,8 @@ contract OrderBook is Governable, ReentrancyGuard {
         uint executionFee;
     }
 
-    modifier whitelisted(address _indexToken, bool _include) {
-        require(whitelistedToken[_indexToken] == _include, "OrderBook: invalid whitelisted");
+    modifier whitelisted(address indexToken, bool include) {
+        require(whitelistedToken[indexToken] == include, "OrderBook: invalid whitelisted");
         _;
     }
 
@@ -86,93 +87,93 @@ contract OrderBook is Governable, ReentrancyGuard {
         executePrivateMode = true;
     }
 
-    function setMinExecutionFee(uint _minExecutionFee) external onlyHandler(dao) {
-        require(_minExecutionFee >= MIN_EXECUTION_FEE, "OrderBook: minExecutionFee underflow");
-        minExecutionFee = _minExecutionFee;
+    function setMinExecutionFee(uint newMinExecutionFee) external onlyHandler(dao) {
+        require(newMinExecutionFee >= MIN_EXECUTION_FEE, "OrderBook: minExecutionFee underflow");
+        minExecutionFee = newMinExecutionFee;
     }
 
-    function setMinOrderWorthUsd(uint _minOrderWorth) external onlyHandler(dao) {
-        require(_minOrderWorth >= MIN_ORDER_WORTH, "OrderBook: minOrderWorth underflow");
-        minOrderWorth = _minOrderWorth;
+    function setMinOrderWorthUsd(uint newMinOrderWorth) external onlyHandler(dao) {
+        require(newMinOrderWorth >= MIN_ORDER_WORTH, "OrderBook: minOrderWorth underflow");
+        minOrderWorth = newMinOrderWorth;
     }
 
-    function setOrderKeeper(address _keeper, bool _bool) external onlyHandlers() {
-        orderKeepers[_keeper] = _bool;
+    function setOrderKeeper(address keeper, bool set) external onlyHandlers() {
+        orderKeepers[keeper] = set;
     }
 
-    function setExecutePrivateMode(bool _executePrivateMode) external onlyHandlers() {
-        executePrivateMode = _executePrivateMode;
+    function setExecutePrivateMode(bool enableExecutePrivateMode) external onlyHandlers() {
+        executePrivateMode = enableExecutePrivateMode;
     }
 
-    function setTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, false) {   
-        whitelistedToken[_indexToken] = true;
+    function setTokenConfig(address indexToken) external onlyHandler(controller) whitelisted(indexToken, false) {   
+        whitelistedToken[indexToken] = true;
     }
 
-    function deleteTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, true) {   
-        whitelistedToken[_indexToken] = false;
+    function deleteTokenConfig(address indexToken) external onlyHandler(controller) whitelisted(indexToken, true) {   
+        whitelistedToken[indexToken] = false;
     }
 
-    function cancelMultiple(uint[] memory _increaseOrderIndexes, uint[] memory _decreaseOrderIndexes) external {
-        for(uint i = 0; _increaseOrderIndexes.length > i; i++) cancelIncreaseOrder(_increaseOrderIndexes[i]);
-        for(uint i = 0; _decreaseOrderIndexes.length > i; i++) cancelDecreaseOrder(_decreaseOrderIndexes[i]);
+    function cancelMultiple(uint[] memory increaseOrderIndexes, uint[] memory decreaseOrderIndexes) external {
+        for(uint i = 0; increaseOrderIndexes.length > i; i++) cancelIncreaseOrder(increaseOrderIndexes[i]);
+        for(uint i = 0; decreaseOrderIndexes.length > i; i++) cancelDecreaseOrder(decreaseOrderIndexes[i]);
     }
 
     function createIncreaseOrder(
-        address _indexToken,
-        uint _collateralDelta,
-        uint _sizeDelta,
-        bool _long,
-        uint _triggerPrice,
-        bool _triggerAboveThreshold,
-        uint _executionFee
-    ) external payable nonReentrant() whitelisted(_indexToken, true) {
-        validateExecutionFee(_executionFee);
-        validateDelta(_sizeDelta, _collateralDelta);
+        address indexToken,
+        uint collateralDelta,
+        uint sizeDelta,
+        bool long,
+        uint triggerPrice,
+        bool triggerAboveThreshold,
+        uint executionFee
+    ) external payable nonReentrant() whitelisted(indexToken, true) {
+        validateExecutionFee(executionFee);
+        validateDelta(sizeDelta, collateralDelta);
         address _user = msg.sender;
 
-        (, uint _positionSize, , , ,) = IVault(vault).getPosition(_user, _indexToken, _long);
+        (, uint _positionSize, , , ,) = IVault(vault).getPosition(_user, indexToken, long);
 
-        if(_positionSize == 0) require(_collateralDelta >= minOrderWorth, "OrderBook: insufficient collateral");
-        if(_collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, address(this), _collateralDelta.precisionToStable());
+        if(_positionSize == 0) require(collateralDelta >= minOrderWorth, "OrderBook: insufficient collateral");
+        if(collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, address(this), collateralDelta.precisionToStable());
 
         _createIncreaseOrder(
             _user,
-            _indexToken,
-            _collateralDelta,
-            _sizeDelta,
-            _long,
-            _triggerPrice,
-            _triggerAboveThreshold,
-            _executionFee
+            indexToken,
+            collateralDelta,
+            sizeDelta,
+            long,
+            triggerPrice,
+            triggerAboveThreshold,
+            executionFee
         );
     }
 
     function _createIncreaseOrder(
-        address _user,
-        address _indexToken,
-        uint _collateralDelta,
-        uint _sizeDelta,
-        bool _long,
-        uint _triggerPrice,
-        bool _triggerAboveThreshold,
-        uint _executionFee
+        address user,
+        address indexToken,
+        uint collateralDelta,
+        uint sizeDelta,
+        bool long,
+        uint triggerPrice,
+        bool triggerAboveThreshold,
+        uint executionFee
     ) internal {
-        uint _orderIndex = increaseOrdersIndex[_user];
+        uint _orderIndex = increaseOrdersIndex[user];
         IncreaseOrder memory order = IncreaseOrder(
-            _user,
-            _indexToken,
-            _collateralDelta,
-            _sizeDelta,
-            _long,
-            _triggerPrice,
-            _triggerAboveThreshold,
-            _executionFee
+            user,
+            indexToken,
+            collateralDelta,
+            sizeDelta,
+            long,
+            triggerPrice,
+            triggerAboveThreshold,
+            executionFee
         );
-        increaseOrdersIndex[_user] = _orderIndex + 1;
-        increaseOrders[_user][_orderIndex] = order;
+        increaseOrdersIndex[user] = _orderIndex + 1;
+        increaseOrders[user][_orderIndex] = order;
     }
 
-    function getIncreaseOrder(address _user, uint256 _orderIndex) public view returns(
+    function getIncreaseOrder(address user, uint orderIndex) public view returns(
         address indexToken,
         uint collateralDelta,
         uint sizeDelta,
@@ -181,7 +182,7 @@ contract OrderBook is Governable, ReentrancyGuard {
         bool triggerAboveThreshold,
         uint executionFee
     ) {
-        IncreaseOrder memory order = increaseOrders[_user][_orderIndex];
+        IncreaseOrder memory order = increaseOrders[user][orderIndex];
         return (
             order.indexToken,
             order.collateralDelta,
@@ -194,26 +195,26 @@ contract OrderBook is Governable, ReentrancyGuard {
     }
 
     function updateIncreaseOrder(
-        uint _orderIndex, 
-        uint _sizeDelta, 
-        uint _triggerPrice, 
-        bool _triggerAboveThreshold
+        uint orderIndex, 
+        uint sizeDelta, 
+        uint triggerPrice, 
+        bool triggerAboveThreshold
     ) external nonReentrant() {
-        IncreaseOrder storage order = increaseOrders[msg.sender][_orderIndex];
+        IncreaseOrder storage order = increaseOrders[msg.sender][orderIndex];
         validateOrderExist(order.user);
-        validateDelta(_sizeDelta, order.collateralDelta);
+        validateDelta(sizeDelta, order.collateralDelta);
 
-        order.triggerPrice = _triggerPrice;
-        order.triggerAboveThreshold = _triggerAboveThreshold;
-        order.sizeDelta = _sizeDelta;
+        order.triggerPrice = triggerPrice;
+        order.triggerAboveThreshold = triggerAboveThreshold;
+        order.sizeDelta = sizeDelta;
     }
 
     function executeIncreaseOrder(
-        address _user, 
-        uint _orderIndex, 
-        address payable _feeReceiver
+        address user, 
+        uint orderIndex, 
+        address payable feeReceiver
     ) external nonReentrant() onlyOrderKeeper() {
-        IncreaseOrder memory order = increaseOrders[_user][_orderIndex];
+        IncreaseOrder memory order = increaseOrders[user][orderIndex];
         validateOrderExist(order.user);
         IVault(vault).validateLiquidatable(order.user, order.indexToken, order.long, false);
 
@@ -224,10 +225,10 @@ contract OrderBook is Governable, ReentrancyGuard {
             order.indexToken
         );
 
-        delete increaseOrders[order.user][_orderIndex];
+        delete increaseOrders[order.user][orderIndex];
 
         if(order.collateralDelta > 0) IERC20(stable).safeTransfer(vault, order.collateralDelta.precisionToStable());
-        safeTransfer(_feeReceiver, order.executionFee);
+        safeTransfer(feeReceiver, order.executionFee);
 
         IVAMM(VAMM).updateIndex(
             order.user, 
@@ -241,67 +242,67 @@ contract OrderBook is Governable, ReentrancyGuard {
         );
     }
 
-    function cancelIncreaseOrder(uint _orderIndex) public {
+    function cancelIncreaseOrder(uint orderIndex) public {
         address payable _user = payable(msg.sender);
-        IncreaseOrder memory order = increaseOrders[_user][_orderIndex];
+        IncreaseOrder memory order = increaseOrders[_user][orderIndex];
         validateOrderExist(order.user);
 
-        delete increaseOrders[_user][_orderIndex];
+        delete increaseOrders[_user][orderIndex];
 
         IERC20(stable).safeTransfer(_user, order.collateralDelta.precisionToStable());
         safeTransfer(_user, order.executionFee);
     }
 
     function createDecreaseOrder(
-        address _indexToken,
-        uint _collateralDelta,
-        uint _sizeDelta,
-        bool _long,
-        uint _triggerPrice,
-        bool _triggerAboveThreshold,
-        uint _executionFee
-    ) external payable nonReentrant() whitelisted(_indexToken, true) {
-        validateExecutionFee(_executionFee);
-        validateDelta(_sizeDelta, _collateralDelta);
+        address indexToken,
+        uint collateralDelta,
+        uint sizeDelta,
+        bool long,
+        uint triggerPrice,
+        bool triggerAboveThreshold,
+        uint executionFee
+    ) external payable nonReentrant() whitelisted(indexToken, true) {
+        validateExecutionFee(executionFee);
+        validateDelta(sizeDelta, collateralDelta);
 
         _createDecreaseOrder(
             msg.sender,
-            _indexToken,
-            _collateralDelta,
-            _sizeDelta,
-            _long,
-            _triggerPrice,
-            _triggerAboveThreshold,
-            _executionFee
+            indexToken,
+            collateralDelta,
+            sizeDelta,
+            long,
+            triggerPrice,
+            triggerAboveThreshold,
+            executionFee
         );
     }
 
     function _createDecreaseOrder(
-        address _user,
-        address _indexToken,
-        uint _collateralDelta,
-        uint _sizeDelta,
-        bool _long,
-        uint _triggerPrice,
-        bool _triggerAboveThreshold,
-        uint _executionFee
+        address user,
+        address indexToken,
+        uint collateralDelta,
+        uint sizeDelta,
+        bool long,
+        uint triggerPrice,
+        bool triggerAboveThreshold,
+        uint executionFee
     ) internal {
-        uint _orderIndex = decreaseOrdersIndex[_user];
+        uint _orderIndex = decreaseOrdersIndex[user];
         DecreaseOrder memory order = DecreaseOrder(
-            _user,
-            _indexToken,
-            _collateralDelta,
-            _sizeDelta,
-            _long,
-            _triggerPrice,
-            _triggerAboveThreshold,
-            _executionFee
+            user,
+            indexToken,
+            collateralDelta,
+            sizeDelta,
+            long,
+            triggerPrice,
+            triggerAboveThreshold,
+            executionFee
         );
-        decreaseOrdersIndex[_user] = _orderIndex + 1;
-        decreaseOrders[_user][_orderIndex] = order;
+        decreaseOrdersIndex[user] = _orderIndex + 1;
+        decreaseOrders[user][_orderIndex] = order;
     }
 
-    function getDecreaseOrder(address _user, uint _orderIndex) public view returns(
+    function getDecreaseOrder(address user, uint orderIndex) public view returns(
         address indexToken,
         uint collateralDelta,
         uint sizeDelta,
@@ -310,7 +311,7 @@ contract OrderBook is Governable, ReentrancyGuard {
         bool triggerAboveThreshold,
         uint executionFee
     ) {
-        DecreaseOrder memory order = decreaseOrders[_user][_orderIndex];
+        DecreaseOrder memory order = decreaseOrders[user][orderIndex];
         return (
             order.indexToken,
             order.collateralDelta,
@@ -323,28 +324,28 @@ contract OrderBook is Governable, ReentrancyGuard {
     }
 
     function updateDecreaseOrder(
-        uint _orderIndex,
-        uint _collateralDelta,
-        uint _sizeDelta,
-        uint _triggerPrice,
-        bool _triggerAboveThreshold
+        uint orderIndex,
+        uint collateralDelta,
+        uint sizeDelta,
+        uint triggerPrice,
+        bool triggerAboveThreshold
     ) external nonReentrant() {
-        DecreaseOrder storage order = decreaseOrders[msg.sender][_orderIndex];
+        DecreaseOrder storage order = decreaseOrders[msg.sender][orderIndex];
         validateOrderExist(order.user);
-        validateDelta(_sizeDelta, _collateralDelta);
+        validateDelta(sizeDelta, collateralDelta);
 
-        order.collateralDelta = _collateralDelta;
-        order.sizeDelta = _sizeDelta;
-        order.triggerPrice = _triggerPrice;
-        order.triggerAboveThreshold = _triggerAboveThreshold;   
+        order.collateralDelta = collateralDelta;
+        order.sizeDelta = sizeDelta;
+        order.triggerPrice = triggerPrice;
+        order.triggerAboveThreshold = triggerAboveThreshold;   
     }
 
     function executeDecreaseOrder(
-        address _user, 
-        uint _orderIndex, 
-        address payable _feeReceiver
+        address user, 
+        uint orderIndex, 
+        address payable feeReceiver
     ) external nonReentrant() onlyOrderKeeper() {
-        DecreaseOrder memory order = decreaseOrders[_user][_orderIndex];
+        DecreaseOrder memory order = decreaseOrders[user][orderIndex];
         validateOrderExist(order.user);
         IVault(vault).validateLiquidatable(order.user, order.indexToken, order.long, false);
 
@@ -355,9 +356,9 @@ contract OrderBook is Governable, ReentrancyGuard {
             order.indexToken
         );
 
-        delete decreaseOrders[order.user][_orderIndex];
+        delete decreaseOrders[order.user][orderIndex];
 
-        safeTransfer(_feeReceiver, order.executionFee);
+        safeTransfer(feeReceiver, order.executionFee);
 
         IVAMM(VAMM).updateIndex(
             order.user, 
@@ -371,41 +372,41 @@ contract OrderBook is Governable, ReentrancyGuard {
         );  
     }
 
-    function cancelDecreaseOrder(uint _orderIndex) public {
+    function cancelDecreaseOrder(uint orderIndex) public {
         address payable _user = payable(msg.sender);
-        DecreaseOrder memory order = decreaseOrders[_user][_orderIndex];
+        DecreaseOrder memory order = decreaseOrders[_user][orderIndex];
         validateOrderExist(order.user);
 
-        delete decreaseOrders[_user][_orderIndex];
+        delete decreaseOrders[_user][orderIndex];
 
         safeTransfer(_user, order.executionFee);
     }
 
-    function safeTransfer(address payable _receiver, uint _value) internal {
-        (bool _success, ) = _receiver.call{value: _value}(new bytes(0));
+    function safeTransfer(address payable receiver, uint value) internal {
+        (bool _success, ) = receiver.call{value: value}(new bytes(0));
         require(_success, "OrderBook: ETH transfer failed");
     }
 
     function validatePositionOrderPrice(
-        bool _triggerAboveThreshold,
-        uint _triggerPrice,
-        address _indexToken
-    ) internal view returns(uint _markPrice) {
-        _markPrice = IVAMM(VAMM).getPrice(_indexToken);
-        bool _isPriceValid = _triggerAboveThreshold ? _markPrice > _triggerPrice : _markPrice < _triggerPrice;
+        bool triggerAboveThreshold,
+        uint triggerPrice,
+        address indexToken
+    ) internal view returns(uint markPrice) {
+        markPrice = IVAMM(VAMM).getPrice(indexToken);
+        bool _isPriceValid = triggerAboveThreshold ? markPrice > triggerPrice : markPrice < triggerPrice;
         require(_isPriceValid, "OrderBook: invalid price for execution");
     }
 
-    function validateExecutionFee(uint _executionFee) internal view {
-        require(_executionFee >= minExecutionFee, "OrderBook: insufficient execution fee");
-        require(msg.value == _executionFee, "OrderBook: incorrect execution fee transferred");
+    function validateExecutionFee(uint executionFee) internal view {
+        require(executionFee >= minExecutionFee, "OrderBook: insufficient execution fee");
+        require(msg.value == executionFee, "OrderBook: incorrect execution fee transferred");
     }
 
-    function validateOrderExist(address _user) internal pure {
-        require(_user != address(0), "OrderBook: non-existent order");
+    function validateOrderExist(address user) internal pure {
+        require(user != address(0), "OrderBook: non-existent order");
     }
 
-    function validateDelta(uint _sizeDelta, uint _collateralDelta) internal pure {
-        require(_sizeDelta > 0 || _collateralDelta > 0, "OrderBook: invalid position amounts");
+    function validateDelta(uint sizeDelta, uint collateralDelta) internal pure {
+        require(sizeDelta > 0 || collateralDelta > 0, "OrderBook: invalid position amounts");
     } 
 }

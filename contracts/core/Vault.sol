@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import "./FlashLoanModule.sol";
+
 import "../periphery/interfaces/ILiquidityManager.sol";
 
 contract Vault is FlashLoanModule {
@@ -60,82 +61,82 @@ contract Vault is FlashLoanModule {
         flashLoanEnabled = true;
     }
 
-    function setTokenConfig(address _indexToken) external onlyHandler(controller) {   
-        validate(!whitelistedToken[_indexToken], 0);    
-        whitelistedToken[_indexToken] = true;
-        setFundingTokenConfig(_indexToken);
+    function setTokenConfig(address indexToken) external onlyHandler(controller) {   
+        validate(!whitelistedToken[indexToken], 0);    
+        whitelistedToken[indexToken] = true;
+        setFundingTokenConfig(indexToken);
     }
 
-    function deleteTokenConfig(address _indexToken) external onlyHandler(controller) {   
-        validate(whitelistedToken[_indexToken], 0);
-        whitelistedToken[_indexToken] = false;
-        deleteFundingTokenConfig(_indexToken);
+    function deleteTokenConfig(address indexToken) external onlyHandler(controller) {   
+        validate(whitelistedToken[indexToken], 0);
+        whitelistedToken[indexToken] = false;
+        deleteFundingTokenConfig(indexToken);
     }
 
-    function setBaseOperatingFee(uint _baseOperatingFee) external onlyHandler(dao) {
-        validate(MAX_BASE_OPERATING_FEE >= _baseOperatingFee, 5);
-        baseOperatingFee = _baseOperatingFee;
+    function setBaseOperatingFee(uint newBaseOperatingFee) external onlyHandler(dao) {
+        validate(MAX_BASE_OPERATING_FEE >= newBaseOperatingFee, 5);
+        baseOperatingFee = newBaseOperatingFee;
     }
 
-    function setMaxOperatingFeePriceDeviation(uint _maxOperatingFeePriceDeviation) external onlyHandler(dao) {
-        validate(Math.PRECISION >= _maxOperatingFeePriceDeviation, 6);
-        maxOperatingFeePriceDeviation = _maxOperatingFeePriceDeviation;
+    function setMaxOperatingFeePriceDeviation(uint newMaxOperatingFeePriceDeviation) external onlyHandler(dao) {
+        validate(Math.PRECISION >= newMaxOperatingFeePriceDeviation, 6);
+        maxOperatingFeePriceDeviation = newMaxOperatingFeePriceDeviation;
     }
 
-    function setOperatingFeePriceMultiplier(uint _operatingFeePriceMultiplier) external onlyHandler(dao) {
-        validate(Math.PRECISION >= _operatingFeePriceMultiplier, 7);
-        operatingFeePriceMultiplier = _operatingFeePriceMultiplier;
+    function setOperatingFeePriceMultiplier(uint newOperatingFeePriceMultiplier) external onlyHandler(dao) {
+        validate(Math.PRECISION >= newOperatingFeePriceMultiplier, 7);
+        operatingFeePriceMultiplier = newOperatingFeePriceMultiplier;
     }
 
-    function setExtraUsageLiquidityEnabled(bool _extraUsageLiquidityEnabled) external onlyHandler(dao) {
+    function setExtraUsageLiquidityEnabled(bool enableExtraUsageLiquidity) external onlyHandler(dao) {
         validate(!ILiquidityManager(liquidityManager).active(), 45);
-        extraUsageLiquidityEnabled = _extraUsageLiquidityEnabled;
+        extraUsageLiquidityEnabled = enableExtraUsageLiquidity;
     }
 
     function manualUseLiquidity() external onlyHandler(liquidityManager) {
         useLiquidity();
     }
 
-    function increasePool(uint _amount) external onlyHandler(LPManager) {
-        poolAmount += _amount;
+    function increasePool(uint amount) external onlyHandler(LPManager) {
+        poolAmount += amount;
 
         useLiquidity();
     }
 
     function decreasePool(
-        address _user, 
-        uint _amount, 
-        uint _underlyingAmount
+        address user, 
+        uint amount, 
+        uint underlyingAmount
     ) external onlyHandler(LPManager) {
-        poolAmount -= _amount;
+        poolAmount -= amount;
 
-        IERC20(stable).safeTransfer(_user, _underlyingAmount);
+        IERC20(stable).safeTransfer(user, underlyingAmount);
 
-        if(_user != LPManager) useLiquidity();
+        if(user != LPManager) useLiquidity();
     }
 
-    function directIncreasePool(uint _underlyingAmount) external nonReentrant() {
+    function directIncreasePool(uint underlyingAmount) external nonReentrant() {
         uint _balance = IERC20(stable).balanceOf(address(this));
-        poolAmount += _underlyingAmount.stableToPrecision();
-        IERC20(stable).safeTransferFrom(msg.sender, address(this), _underlyingAmount); 
-        validate(IERC20(stable).balanceOf(address(this)) == _balance + _underlyingAmount, 21);
+        poolAmount += underlyingAmount.stableToPrecision();
+        IERC20(stable).safeTransferFrom(msg.sender, address(this), underlyingAmount); 
+        validate(IERC20(stable).balanceOf(address(this)) == _balance + underlyingAmount, 21);
         useLiquidity();
     }
 
     function increasePosition(
-        address _user, 
-        address _indexToken, 
-        uint _collateralDelta, 
-        uint _sizeDelta, 
-        bool _long, 
-        uint _markPrice 
+        address user, 
+        address indexToken, 
+        uint collateralDelta, 
+        uint sizeDelta, 
+        bool long, 
+        uint markPrice 
     ) external onlyHandler(VAMM) {
-        validate(whitelistedToken[_indexToken], 0);
+        validate(whitelistedToken[indexToken], 0);
         updateTotalBorrows();
-        updateTotalFunding(_indexToken);
-        setUserUtility(_user);
+        updateTotalFunding(indexToken);
+        setUserUtility(user);
         
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position storage position = positions[_key]; 
 
         validateLastUpdateTime(position.lastUpdateTime);
@@ -144,54 +145,54 @@ contract Vault is FlashLoanModule {
         if(position.borrowed > Math.INIT_LOCK_AMOUNT){ 
             _margin = collectBorrowFee(_key); 
             position.collateral -= _margin; 
-            if(_sizeDelta > 0){
-                uint _operatingFee = collectOperatingFee(_indexToken, _sizeDelta, _long, true); 
+            if(sizeDelta > 0){
+                uint _operatingFee = collectOperatingFee(indexToken, sizeDelta, long, true); 
                 position.collateral -= _operatingFee; 
                 _margin += _operatingFee; 
             } 
         } else {
-            _collateralDelta -= collectOperatingFee(_indexToken, _sizeDelta, _long, true);
+            collateralDelta -= collectOperatingFee(indexToken, sizeDelta, long, true);
         }
 
         uint _delta;
         if(position.entryFunding > Math.INIT_LOCK_AMOUNT){
             bool _hasProfit;
-            (_delta, _hasProfit) = collectFundingFee(_user, _indexToken, _long);
+            (_delta, _hasProfit) = collectFundingFee(user, indexToken, long);
             _hasProfit ? position.collateral += _delta : position.collateral -= _delta; 
             (_margin, _delta) = calculateFeesAndDelta(_hasProfit, _margin, _delta);
         }
 
-        _margin += _sizeDelta - _collateralDelta + _delta; 
+        _margin += sizeDelta - collateralDelta + _delta; 
         borrowMargin(_key, _margin);
-        getEntryFunding(_key, _indexToken, _sizeDelta, _long);
+        getEntryFunding(_key, indexToken, sizeDelta, long);
 
-        uint _assetAmount = _sizeDelta.mulDiv(Math.ACCURACY, _markPrice);
+        uint _assetAmount = sizeDelta.mulDiv(Math.ACCURACY, markPrice);
 
         if(position.size > 0) _assetAmount += position.size.mulDiv(Math.ACCURACY, position.entryPrice);
 
-        position.size += _sizeDelta;
-        position.collateral += _collateralDelta;
+        position.size += sizeDelta;
+        position.collateral += collateralDelta;
         position.entryPrice = position.size.mulDiv(Math.ACCURACY, _assetAmount);
         position.lastUpdateTime = block.timestamp;
 
-        validateLeverage(position.size, position.collateral, _user);
-        validateLiquidatable(_user, _indexToken, _long, false);
+        validateLeverage(position.size, position.collateral, user);
+        validateLiquidatable(user, indexToken, long, false);
 
         if(zeroOperatingFee) utilityDecreaseOperationFee(false);
         useLiquidity();
     }
 
     function addCollateral(
-        address _user, 
-        address _indexToken, 
-        uint _collateralDelta, 
-        bool _long
+        address user, 
+        address indexToken, 
+        uint collateralDelta, 
+        bool long
     ) external onlyHandler(marketRouter) {   
-        validate(whitelistedToken[_indexToken], 0);
+        validate(whitelistedToken[indexToken], 0);
         updateTotalBorrows();
-        updateTotalFunding(_indexToken);
+        updateTotalFunding(indexToken);
 
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position storage position = positions[_key]; 
 
         validate(position.size > 0, 16);
@@ -199,13 +200,13 @@ contract Vault is FlashLoanModule {
 
         uint _margin = collectBorrowFee(_key); 
 
-        (uint _delta, bool _hasProfit) = collectFundingFee(_user, _indexToken, _long); 
+        (uint _delta, bool _hasProfit) = collectFundingFee(user, indexToken, long); 
 
         (_margin, _delta) = calculateFeesAndDelta(_hasProfit, _margin, _delta);
 
-        validate(_collateralDelta + _delta > _margin, 17);
+        validate(collateralDelta + _delta > _margin, 17);
 
-        uint _collateralNext = position.collateral + _collateralDelta - _margin + _delta;
+        uint _collateralNext = position.collateral + collateralDelta - _margin + _delta;
         _margin = _collateralNext - position.collateral;
 
         borrowMarginRedeem(_key, _margin);
@@ -213,56 +214,56 @@ contract Vault is FlashLoanModule {
         position.collateral = _collateralNext;
         position.lastUpdateTime = block.timestamp;
 
-        validateLeverage(position.size, position.collateral, _user);
+        validateLeverage(position.size, position.collateral, user);
         useLiquidity();
     }
 
     function decreasePosition(
-        address _user, 
-        address _indexToken, 
-        uint _collateralDelta,  
-        uint _sizeDelta, 
-        bool _long,
-        uint _markPrice
+        address user, 
+        address indexToken, 
+        uint collateralDelta,  
+        uint sizeDelta, 
+        bool long,
+        uint markPrice
     ) external onlyHandler(VAMM) {
-        validate(whitelistedToken[_indexToken], 0);
+        validate(whitelistedToken[indexToken], 0);
         updateTotalBorrows();
-        updateTotalFunding(_indexToken);
-        setUserUtility(_user);
+        updateTotalFunding(indexToken);
+        setUserUtility(user);
 
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position storage position = positions[_key];
 
         validateLastUpdateTime(position.lastUpdateTime);
-        validate(position.size >= _sizeDelta, 18);
+        validate(position.size >= sizeDelta, 18);
 
         uint _margin = position.size - position.collateral; 
         position.collateral -= 
-        collectOperatingFee(_indexToken, _sizeDelta, _long, false) + collectBorrowFee(_key); 
+        collectOperatingFee(indexToken, sizeDelta, long, false) + collectBorrowFee(_key); 
 
-        (uint _delta, bool _hasProfit) = collectFundingFee(_user, _indexToken, _long); 
+        (uint _delta, bool _hasProfit) = collectFundingFee(user, indexToken, long); 
         _hasProfit ? position.collateral += _delta : position.collateral -= _delta;
 
-        if(_long && _markPrice > position.entryPrice || !_long && position.entryPrice > _markPrice){
+        if(long && markPrice > position.entryPrice || !long && position.entryPrice > markPrice){
             _hasProfit = true;
         } else {
             _hasProfit = false;
         }
 
         _decreasePosition(
-            _user, 
-            _indexToken,
-            _collateralDelta, 
-            _sizeDelta,
-            _markPrice,
+            user, 
+            indexToken,
+            collateralDelta, 
+            sizeDelta,
+            markPrice,
             _margin,
-            _long,
+            long,
             _hasProfit
         );
         
         if(position.size > 0){
-            validateLeverage(position.size, position.collateral, _user);
-            validateLiquidatable(_user, _indexToken, _long, false);
+            validateLeverage(position.size, position.collateral, user);
+            validateLiquidatable(user, indexToken, long, false);
         }
 
         if(zeroOperatingFee) utilityDecreaseOperationFee(false);
@@ -270,27 +271,27 @@ contract Vault is FlashLoanModule {
     }
 
     function withdrawCollateral(
-        address _user, 
-        address _indexToken, 
-        uint _collateralDelta, 
-        bool _long
+        address user, 
+        address indexToken, 
+        uint collateralDelta, 
+        bool long
     ) external onlyHandler(marketRouter) {   
-        validate(whitelistedToken[_indexToken], 0);
+        validate(whitelistedToken[indexToken], 0);
         updateTotalBorrows();
-        updateTotalFunding(_indexToken);
+        updateTotalFunding(indexToken);
 
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position storage position = positions[_key];
 
         validateLastUpdateTime(position.lastUpdateTime);
     
         uint _borrowFee = collectBorrowFee(_key); 
 
-        (uint _delta, bool _hasProfit) = collectFundingFee(_user, _indexToken, _long); 
+        (uint _delta, bool _hasProfit) = collectFundingFee(user, indexToken, long); 
         _hasProfit ? position.collateral += _delta : position.collateral -= _delta;
 
-        validate(position.collateral >= _collateralDelta + _borrowFee, 19);
-        uint _collateralNext = position.collateral - _collateralDelta - _borrowFee; 
+        validate(position.collateral >= collateralDelta + _borrowFee, 19);
+        uint _collateralNext = position.collateral - collateralDelta - _borrowFee; 
         uint _margin = position.collateral - _collateralNext; 
         
         borrowMargin(_key, _margin); 
@@ -298,23 +299,23 @@ contract Vault is FlashLoanModule {
         position.collateral = _collateralNext; 
         position.lastUpdateTime = block.timestamp;
 
-        _collateralDelta = _collateralDelta.precisionToStable();
-        IERC20(stable).safeTransfer(_user, _collateralDelta);
+        collateralDelta = collateralDelta.precisionToStable();
+        IERC20(stable).safeTransfer(user, collateralDelta);
         
-        validateLeverage(position.size, position.collateral, _user);
-        validateLiquidatable(_user, _indexToken, _long, false);
+        validateLeverage(position.size, position.collateral, user);
+        validateLiquidatable(user, indexToken, long, false);
         useLiquidity();
     }
 
     function serviceWithdrawCollateral(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) external onlyHandler(marketRouter) {
-        validate(!whitelistedToken[_indexToken], 0);
+        validate(!whitelistedToken[indexToken], 0);
         updateTotalBorrows();
 
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position memory position = positions[_key];
 
         validate(position.size > 0, 16);
@@ -335,7 +336,7 @@ contract Vault is FlashLoanModule {
 
         if(_collateralDelta > 0){
             _collateralDelta = _collateralDelta.precisionToStable();
-            IERC20(stable).safeTransfer(_user, _collateralDelta);
+            IERC20(stable).safeTransfer(user, _collateralDelta);
         }
 
         delete positions[_key];
@@ -343,22 +344,22 @@ contract Vault is FlashLoanModule {
     }
 
     function liquidatePosition(
-        address _user,  
-        address _indexToken,
-        uint _sizeDelta,
-        bool _long, 
-        address _feeReceiver
+        address user,  
+        address indexToken,
+        uint sizeDelta,
+        bool long, 
+        address feeReceiver
     ) external onlyHandler(VAMM) {
-        validate(whitelistedToken[_indexToken], 0);
+        validate(whitelistedToken[indexToken], 0);
         updateTotalBorrows();
-        updateTotalFunding(_indexToken);
-        setUserUtility(_user);
+        updateTotalFunding(indexToken);
+        setUserUtility(user);
 
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position memory position = positions[_key];
 
         uint _collateral = position.collateral; 
-        uint _margin = _sizeDelta - _collateral;  
+        uint _margin = sizeDelta - _collateral;  
         uint _remainingLiquidationFee = liquidationFee; 
         uint _fee = preCalculateUserDebt(_key) - _margin;  
 
@@ -370,24 +371,24 @@ contract Vault is FlashLoanModule {
             _collateral = 0;
         } else {
             _collateral -= collectBorrowFee(_key); 
-            _fee = calculateOperationFeeAmount(_indexToken, _sizeDelta, _long, false); 
+            _fee = calculateOperationFeeAmount(indexToken, sizeDelta, long, false); 
             if(_fee >= _collateral){
                 poolAmount += _collateral;
                 _collateral = 0;
             } else {
-                _collateral -= collectOperatingFee(_indexToken, _sizeDelta, _long, false); 
+                _collateral -= collectOperatingFee(indexToken, sizeDelta, long, false); 
                 bool _hasProfit;
-                (_fee, _hasProfit, , ) = preCalculateUserFundingFee(_user, _indexToken, _long);
+                (_fee, _hasProfit, , ) = preCalculateUserFundingFee(user, indexToken, long);
                 
                 if(!_hasProfit && _fee > _collateral){
                     poolAmount += _collateral;
                     _collateral = 0;
                 } else {
                     if(!_hasProfit && _collateral >= _fee){
-                        collectFundingFee(_user, _indexToken, _long); 
+                        collectFundingFee(user, indexToken, long); 
                         _collateral -= _fee;
                     } else {
-                        collectFundingFee(_user, _indexToken, _long); 
+                        collectFundingFee(user, indexToken, long); 
                         _collateral += _fee;
                     }
                 }
@@ -399,12 +400,12 @@ contract Vault is FlashLoanModule {
         }
 
         borrowMarginRedeem(_key, _margin);
-        fundingFeeRedeem(_key, _indexToken, _sizeDelta, _long);
+        fundingFeeRedeem(_key, indexToken, sizeDelta, long);
     
         if(_collateral > 0) poolAmount += _collateral;
 
         _remainingLiquidationFee = _remainingLiquidationFee.precisionToStable();
-        IERC20(stable).safeTransfer(_feeReceiver, _remainingLiquidationFee);
+        IERC20(stable).safeTransfer(feeReceiver, _remainingLiquidationFee);
 
         delete positions[_key];
 
@@ -413,17 +414,17 @@ contract Vault is FlashLoanModule {
     }
 
     function validateLiquidate(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) public view returns(uint liquidatePrice, bool liquidatable) {
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position memory position = positions[_key];
 
         if(position.size == 0) return (0, false); 
 
-        (uint _collateral, uint _markPrice) = (position.collateral, IVAMM(VAMM).getPrice(_indexToken));
-        (uint _fees, uint _delta) = calculateFees(_user, _indexToken, _long);
+        (uint _collateral, uint _markPrice) = (position.collateral, IVAMM(VAMM).getPrice(indexToken));
+        (uint _fees, uint _delta) = calculateFees(user, indexToken, long);
 
         if(_collateral + _delta > _fees){
             _collateral = _collateral + _delta - _fees; 
@@ -433,27 +434,27 @@ contract Vault is FlashLoanModule {
 
         uint _deviationToLiquidate = Math.PRECISION.mulDiv(Math.PRECISION, (position.size * Math.PRECISION  / _collateral));
         
-        liquidatePrice = _long ? 
+        liquidatePrice = long ? 
         (Math.PRECISION * position.entryPrice - position.entryPrice * _deviationToLiquidate) / Math.PRECISION : 
         position.entryPrice.mulDiv((Math.PRECISION + _deviationToLiquidate), Math.PRECISION);
 
-        liquidatable = _long ? liquidatePrice >= _markPrice : _markPrice >= liquidatePrice;
+        liquidatable = long ? liquidatePrice >= _markPrice : _markPrice >= liquidatePrice;
     }
 
     function preCalculatePositionDelta( 
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) public view returns(bool hasProfit, uint delta) {
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position memory position = positions[_key];
         if(position.size == 0) return (false, 0);
         
-        (uint _markPrice, uint _entryPrice) = (IVAMM(VAMM).getPrice(_indexToken), position.entryPrice);
-        (uint _fees, uint _delta) = calculateFees(_user, _indexToken, _long);
+        (uint _markPrice, uint _entryPrice) = (IVAMM(VAMM).getPrice(indexToken), position.entryPrice);
+        (uint _fees, uint _delta) = calculateFees(user, indexToken, long);
 
         delta = position.size.mulDiv(getPriceDelta(_entryPrice, _markPrice), _entryPrice);
-        hasProfit = _long ? _markPrice > _entryPrice : _entryPrice > _markPrice;
+        hasProfit = long ? _markPrice > _entryPrice : _entryPrice > _markPrice;
         if(hasProfit){
             if(delta + _delta > _fees){
                 delta = delta + _delta - _fees;
@@ -467,41 +468,41 @@ contract Vault is FlashLoanModule {
     }
 
     function calculateOperationFeeAmount( 
-        address _indexToken, 
-        uint _sizeDelta, 
-        bool _long, 
-        bool _increase
+        address indexToken, 
+        uint sizeDelta, 
+        bool long, 
+        bool increase
     ) public view returns(uint) {
-        return _sizeDelta.mulDiv(calculateOperatingFee(_indexToken, _long, _increase), Math.PRECISION);
+        return sizeDelta.mulDiv(calculateOperatingFee(indexToken, long, increase), Math.PRECISION);
     }
 
-    function calculateOperatingFee(address _indexToken, bool _long, bool _increase) public view returns(uint) {
+    function calculateOperatingFee(address indexToken, bool long, bool increase) public view returns(uint) {
         if(zeroOperatingFee) return 0;
-        uint _vammPrice = IVAMM(VAMM).getPrice(_indexToken);
-        uint _feedPrice = IPriceFeed(priceFeed).getPrice(_indexToken);
+        uint _vammPrice = IVAMM(VAMM).getPrice(indexToken);
+        uint _feedPrice = IPriceFeed(priceFeed).getPrice(indexToken);
         uint _priceDelta = getPriceDelta(_vammPrice, _feedPrice).mulDiv(Math.PRECISION, _vammPrice);
         if(_vammPrice > _feedPrice){
-            if(_increase && _long || !_increase && !_long) return calculateOperatingFeeInternal(_priceDelta);
+            if(increase && long || !increase && !long) return calculateOperatingFeeInternal(_priceDelta);
         }
         if(_vammPrice < _feedPrice){
-            if(_increase && !_long || !_increase && _long) return calculateOperatingFeeInternal(_priceDelta);
+            if(increase && !long || !increase && long) return calculateOperatingFeeInternal(_priceDelta);
         }
         return baseOperatingFee;
     }
 
-    function validateLiquidatable(address _user, address _indexToken, bool _long, bool _bool) public view {
-        (, bool _liquidatable) = validateLiquidate(_user, _indexToken, _long);
-        validate(_liquidatable == _bool, 22);
+    function validateLiquidatable(address user, address indexToken, bool long, bool condition) public view {
+        (, bool _liquidatable) = validateLiquidate(user, indexToken, long);
+        validate(_liquidatable == condition, 22);
     }
 
     function getPosition(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) public view returns(uint, uint, uint, uint, bool, uint) {
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position memory position = positions[_key];
-        (bool _hasProfit, uint _delta) = preCalculatePositionDelta(_user, _indexToken, _long);
+        (bool _hasProfit, uint _delta) = preCalculatePositionDelta(user, indexToken, long);
         return (
             position.collateral, 
             position.size, 
@@ -512,47 +513,47 @@ contract Vault is FlashLoanModule {
         );
     }
 
-    function calculateOperatingFeeInternal(uint _priceDelta) internal view returns(uint) {
-        return _priceDelta >= maxOperatingFeePriceDeviation ? 
+    function calculateOperatingFeeInternal(uint priceDelta) internal view returns(uint) {
+        return priceDelta >= maxOperatingFeePriceDeviation ? 
         MAX_BASE_OPERATING_FEE + baseOperatingFee : 
-        _priceDelta.mulDiv(operatingFeePriceMultiplier, Math.PRECISION) + baseOperatingFee;
+        priceDelta.mulDiv(operatingFeePriceMultiplier, Math.PRECISION) + baseOperatingFee;
     }
 
     function calculateFees(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) internal view returns(uint fees, uint delta) {
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position memory position = positions[_key];
         fees = preCalculateUserBorrowDebt(_key);
 
-        (bool _staker, , bool _operatingFee, , , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
-        if(!_staker || !_operatingFee) fees += calculateOperationFeeAmount(_indexToken, position.size, _long, false);
+        (bool _staker, , bool _operatingFee, , , ) = IUtilityStorage(utilityStorage).getUserUtility(user);
+        if(!_staker || !_operatingFee) fees += calculateOperationFeeAmount(indexToken, position.size, long, false);
 
         bool _hasProfit;
-        (delta, _hasProfit, ,) = preCalculateUserFundingFee(_user, _indexToken, _long);
+        (delta, _hasProfit, ,) = preCalculateUserFundingFee(user, indexToken, long);
 
         (fees, delta) = calculateFeesAndDelta(_hasProfit, fees, delta);
     }
 
     function collectOperatingFee(
-        address _indexToken, 
-        uint _sizeDelta, 
-        bool _long, 
-        bool _increase
+        address indexToken, 
+        uint sizeDelta, 
+        bool long, 
+        bool increase
     ) internal returns(uint operatingFeeAmount) {
-        operatingFeeAmount = calculateOperationFeeAmount(_indexToken, _sizeDelta, _long, _increase);
+        operatingFeeAmount = calculateOperationFeeAmount(indexToken, sizeDelta, long, increase);
         poolAmount += operatingFeeAmount;
     }
 
-    function setUserUtility(address _user) internal {
-        (bool _staker, , bool _operatingFee, , , ) = IUtilityStorage(utilityStorage).getUserUtility(_user);
+    function setUserUtility(address user) internal {
+        (bool _staker, , bool _operatingFee, , , ) = IUtilityStorage(utilityStorage).getUserUtility(user);
         if(_staker && _operatingFee) utilityDecreaseOperationFee(true);
     }
 
-    function utilityDecreaseOperationFee(bool _zeroFee) internal {
-        zeroOperatingFee = _zeroFee;
+    function utilityDecreaseOperationFee(bool zeroFee) internal {
+        zeroOperatingFee = zeroFee;
     }
 
     function useLiquidity() internal {
@@ -575,42 +576,42 @@ contract Vault is FlashLoanModule {
     }
 
     function _decreasePosition(
-        address _user, 
-        address _indexToken,
-        uint _collateralDelta, 
-        uint _sizeDelta,
-        uint _markPrice,
-        uint _margin,
-        bool _long,
-        bool _hasProfit
+        address user, 
+        address indexToken,
+        uint collateralDelta, 
+        uint sizeDelta,
+        uint markPrice,
+        uint margin,
+        bool long,
+        bool hasProfit
     ) internal {
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
         Position storage position = positions[_key];
-        _collateralDelta = position.size == _sizeDelta ? position.collateral : _collateralDelta; 
-        validate(position.collateral >= _collateralDelta, 29);
+        collateralDelta = position.size == sizeDelta ? position.collateral : collateralDelta; 
+        validate(position.collateral >= collateralDelta, 29);
         
-        uint _priceDelta = getPriceDelta(position.entryPrice, _markPrice);
-        uint _sizeNext = position.size - _sizeDelta; 
+        uint _priceDelta = getPriceDelta(position.entryPrice, markPrice);
+        uint _sizeNext = position.size - sizeDelta; 
         uint _realizedPnL = (position.size * _priceDelta / position.entryPrice) - (_sizeNext * _priceDelta / position.entryPrice); 
-        uint _collateralNext = position.collateral - _collateralDelta; 
+        uint _collateralNext = position.collateral - collateralDelta; 
         uint _marginNext = _sizeNext - _collateralNext; 
 
-        if(!_hasProfit) validate(_collateralDelta >= _realizedPnL, 30);
+        if(!hasProfit) validate(collateralDelta >= _realizedPnL, 30);
 
-        if(_marginNext > _margin){
-            _margin = _marginNext - _margin;
-            borrowMargin(_key, _margin); 
+        if(_marginNext > margin){
+            margin = _marginNext - margin;
+            borrowMargin(_key, margin); 
         } else {
-            _margin = _margin - _marginNext; 
-            borrowMarginRedeem(_key, _margin);
+            margin = margin - _marginNext; 
+            borrowMarginRedeem(_key, margin);
         }
 
         if(_sizeNext > position.size){
-            _margin = _sizeNext - position.size;
-            getEntryFunding(_key, _indexToken, _margin, _long);
+            margin = _sizeNext - position.size;
+            getEntryFunding(_key, indexToken, margin, long);
         } else {
-            _margin = position.size - _sizeNext;
-            fundingFeeRedeem(_key, _indexToken, _margin, _long);
+            margin = position.size - _sizeNext;
+            fundingFeeRedeem(_key, indexToken, margin, long);
         }
 
         if(_sizeNext > 0){
@@ -622,12 +623,12 @@ contract Vault is FlashLoanModule {
         }
         
         // margin = income {stack too deep prevent}
-        _margin = _hasProfit ? _collateralDelta + _realizedPnL : _collateralDelta - _realizedPnL; 
-        _hasProfit ? poolAmount -= _realizedPnL : poolAmount += _realizedPnL;
+        margin = hasProfit ? collateralDelta + _realizedPnL : collateralDelta - _realizedPnL; 
+        hasProfit ? poolAmount -= _realizedPnL : poolAmount += _realizedPnL;
 
-        if(_hasProfit || _margin > 0){
-            _margin = _margin.precisionToStable();
-            IERC20(stable).safeTransfer(_user, _margin);
+        if(hasProfit || margin > 0){
+            margin = margin.precisionToStable();
+            IERC20(stable).safeTransfer(user, margin);
         }
     }
 }

@@ -9,36 +9,37 @@ interface IOrderBook {
     function VAMM() external view returns(address);
     function stable() external view returns(address);
     function executePrivateMode() external view returns(bool);
-    function increaseOrdersIndex(address _user) external view returns(uint);
-    function decreaseOrdersIndex(address _user) external view returns(uint);
-    function orderKeepers(address _keeper) external view returns(bool);
-    function whitelistedToken(address _indexToken) external view returns(bool);
 
-    function setMinExecutionFee(uint _minExecutionFee) external;
+    function increaseOrdersIndex(address user) external view returns(uint);
+    function decreaseOrdersIndex(address user) external view returns(uint);
+    function orderKeepers(address keeper) external view returns(bool);
+    function whitelistedToken(address indexToken) external view returns(bool);
 
-    function setMinOrderWorthUsd(uint _minOrderWorth) external;
+    function setMinExecutionFee(uint newMinExecutionFee) external;
 
-    function setOrderKeeper(address _keeper, bool _bool) external;
+    function setMinOrderWorthUsd(uint newMinOrderWorth) external;
 
-    function setExecutePrivateMode(bool _executePrivateMode) external;
+    function setOrderKeeper(address keeper, bool set) external;
 
-    function setTokenConfig(address _indexToken) external;
+    function setExecutePrivateMode(bool enableExecutePrivateMode) external;
 
-    function deleteTokenConfig(address _indexToken) external;
+    function setTokenConfig(address indexToken) external;
 
-    function cancelMultiple(uint[] memory _increaseOrderIndexes, uint[] memory _decreaseOrderIndexes) external;
+    function deleteTokenConfig(address indexToken) external;
+
+    function cancelMultiple(uint[] memory increaseOrderIndexes, uint[] memory decreaseOrderIndexes) external;
 
     function createIncreaseOrder(
-        address _indexToken,
-        uint _collateralDelta,
-        uint _sizeDelta,
-        bool _long,
-        uint _triggerPrice,
-        bool _triggerAboveThreshold,
-        uint _executionFee
+        address indexToken,
+        uint collateralDelta,
+        uint sizeDelta,
+        bool long,
+        uint triggerPrice,
+        bool triggerAboveThreshold,
+        uint executionFee
     ) external payable;
 
-    function getIncreaseOrder(address _user, uint256 _orderIndex) external view returns(
+    function getIncreaseOrder(address user, uint256 orderIndex) external view returns(
         address indexToken,
         uint collateralDelta,
         uint sizeDelta,
@@ -49,27 +50,27 @@ interface IOrderBook {
     );
 
     function updateIncreaseOrder(
-        uint _orderIndex, 
-        uint _sizeDelta, 
-        uint _triggerPrice, 
-        bool _triggerAboveThreshold
+        uint orderIndex, 
+        uint sizeDelta, 
+        uint triggerPrice, 
+        bool triggerAboveThreshold
     ) external;
 
-    function executeIncreaseOrder(address _user, uint _orderIndex, address payable _feeReceiver) external;
+    function executeIncreaseOrder(address user, uint orderIndex, address payable feeReceiver) external;
 
-    function cancelIncreaseOrder(uint _orderIndex) external;
+    function cancelIncreaseOrder(uint orderIndex) external;
 
     function createDecreaseOrder(
-        address _indexToken,
-        uint _collateralDelta,
-        uint _sizeDelta,
-        bool _long,
-        uint _triggerPrice,
-        bool _triggerAboveThreshold,
-        uint _executionFee
+        address indexToken,
+        uint collateralDelta,
+        uint sizeDelta,
+        bool long,
+        uint triggerPrice,
+        bool triggerAboveThreshold,
+        uint executionFee
     ) external payable;
 
-    function getDecreaseOrder(address _user, uint _orderIndex) external view returns(
+    function getDecreaseOrder(address user, uint orderIndex) external view returns(
         address indexToken,
         uint collateralDelta,
         uint sizeDelta,
@@ -80,15 +81,15 @@ interface IOrderBook {
     );
 
     function updateDecreaseOrder(
-        uint _orderIndex,
-        uint _collateralDelta,
-        uint _sizeDelta,
-        uint _triggerPrice,
-        bool _triggerAboveThreshold
+        uint orderIndex,
+        uint collateralDelta,
+        uint sizeDelta,
+        uint triggerPrice,
+        bool triggerAboveThreshold
     ) external;
 
-    function executeDecreaseOrder(address _user, uint _orderIndex, address payable _feeReceiver) external;
+    function executeDecreaseOrder(address user, uint orderIndex, address payable feeReceiver) external;
 
-    function cancelDecreaseOrder(uint _orderIndex) external;
+    function cancelDecreaseOrder(uint orderIndex) external;
 
 }

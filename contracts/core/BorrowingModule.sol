@@ -17,21 +17,21 @@ contract BorrowingModule is VaultBase {
     uint public baseBorrowRatePerYear;
     uint public extraBorrowRatePerYear;
 
-    function setBaseBorrowRatePerYear(uint _baseBorrowRatePerYear) external onlyHandler(dao) {
-        validate(MAX_BASE_BORROW_RATE_PER_YEAR >= _baseBorrowRatePerYear, 9);
-        validate(extraBorrowRatePerYear >= _baseBorrowRatePerYear, 10);
-        baseBorrowRatePerYear = _baseBorrowRatePerYear;
+    function setBaseBorrowRatePerYear(uint newBaseBorrowRatePerYear) external onlyHandler(dao) {
+        validate(MAX_BASE_BORROW_RATE_PER_YEAR >= newBaseBorrowRatePerYear, 9);
+        validate(extraBorrowRatePerYear >= newBaseBorrowRatePerYear, 10);
+        baseBorrowRatePerYear = newBaseBorrowRatePerYear;
     }
 
-    function setExtraBorrowRatePerYear(uint _extraBorrowRatePerYear) external onlyHandler(dao) {
-        validate(MAX_EXTRA_BORROW_RATE_PER_YEAR >= _extraBorrowRatePerYear, 11);
-        validate(_extraBorrowRatePerYear >= baseBorrowRatePerYear, 12);
-        extraBorrowRatePerYear = _extraBorrowRatePerYear;
+    function setExtraBorrowRatePerYear(uint newExtraBorrowRatePerYear) external onlyHandler(dao) {
+        validate(MAX_EXTRA_BORROW_RATE_PER_YEAR >= newExtraBorrowRatePerYear, 11);
+        validate(newExtraBorrowRatePerYear >= baseBorrowRatePerYear, 12);
+        extraBorrowRatePerYear = newExtraBorrowRatePerYear;
     }
 
-    function setUtilizationRateKink(uint _utilizationRateKink) external onlyHandler(dao) {
-        validate(Math.PRECISION >= _utilizationRateKink, 13);
-        utilizationRateKink = _utilizationRateKink;
+    function setUtilizationRateKink(uint newUtilizationRateKink) external onlyHandler(dao) {
+        validate(Math.PRECISION >= newUtilizationRateKink, 13);
+        utilizationRateKink = newUtilizationRateKink;
     } 
 
     function updateTotalBorrows() public returns(uint) {
@@ -50,14 +50,14 @@ contract BorrowingModule is VaultBase {
         }       
     }
 
-    function preCalculateUserDebt(bytes32 _key) public view returns(uint) { 
-        return positions[_key].borrowed.mulDiv(preUpdateTotalBorrows(), borrowPool);
+    function preCalculateUserDebt(bytes32 key) public view returns(uint) { 
+        return positions[key].borrowed.mulDiv(preUpdateTotalBorrows(), borrowPool);
     }
 
-    function preCalculateUserBorrowDebt(bytes32 _key) public view returns(uint) {
-        Position memory position = positions[_key];
+    function preCalculateUserBorrowDebt(bytes32 key) public view returns(uint) {
+        Position memory position = positions[key];
         uint _margin = position.size - position.collateral;
-        return preCalculateUserDebt(_key) > _margin ? preCalculateUserDebt(_key) - _margin : 0;
+        return preCalculateUserDebt(key) > _margin ? preCalculateUserDebt(key) - _margin : 0;
     }
 
     function availableLiquidity() public view returns(uint) {
@@ -76,20 +76,20 @@ contract BorrowingModule is VaultBase {
         return preUpdateTotalBorrows().mulDiv(Math.PRECISION, poolAmount);
     }
 
-    function borrowMargin(bytes32 _key, uint _margin) internal {
-        validate(availableLiquidity() >= _margin, 25);
-        uint _userShares = _margin.mulDiv(borrowPool, totalBorrows);
-        positions[_key].borrowed += _userShares;
+    function borrowMargin(bytes32 key, uint margin) internal {
+        validate(availableLiquidity() >= margin, 25);
+        uint _userShares = margin.mulDiv(borrowPool, totalBorrows);
+        positions[key].borrowed += _userShares;
         borrowPool += _userShares;
-        totalBorrows += _margin;  
+        totalBorrows += margin;  
     }
 
-    function collectBorrowFee(bytes32 _key) internal returns(uint userBorrowDebt) {
-        userBorrowDebt = preCalculateUserBorrowDebt(_key);
+    function collectBorrowFee(bytes32 key) internal returns(uint userBorrowDebt) {
+        userBorrowDebt = preCalculateUserBorrowDebt(key);
         if(userBorrowDebt > 0){
             uint _halfBorrowDebt = userBorrowDebt / 2;
             uint _sharePoolDecrease = userBorrowDebt.mulDiv(borrowPool, totalBorrows);
-            positions[_key].borrowed -= _sharePoolDecrease; 
+            positions[key].borrowed -= _sharePoolDecrease; 
             borrowPool -= _sharePoolDecrease;
             totalBorrows -= userBorrowDebt;
             poolAmount += _halfBorrowDebt;
@@ -97,10 +97,10 @@ contract BorrowingModule is VaultBase {
         }
     }
 
-    function borrowMarginRedeem(bytes32 _key, uint _margin) internal {
-        uint _sharePoolDecrease = _margin.mulDiv(borrowPool, totalBorrows);
-        Position storage position = positions[_key];
-        if(shouldValidatePoolShares) validatePoolShares(totalBorrows, _margin, borrowPool, _sharePoolDecrease, position.borrowed);
+    function borrowMarginRedeem(bytes32 key, uint margin) internal {
+        uint _sharePoolDecrease = margin.mulDiv(borrowPool, totalBorrows);
+        Position storage position = positions[key];
+        if(shouldValidatePoolShares) validatePoolShares(totalBorrows, margin, borrowPool, _sharePoolDecrease, position.borrowed);
 
         _sharePoolDecrease >= position.borrowed ? 
         position.borrowed = 0 : position.borrowed -= _sharePoolDecrease;
@@ -108,7 +108,7 @@ contract BorrowingModule is VaultBase {
         _sharePoolDecrease >= borrowPool ? 
         borrowPool = Math.INIT_LOCK_AMOUNT : borrowPool -= _sharePoolDecrease;
         
-        _margin >= totalBorrows ? 
-        totalBorrows = Math.INIT_LOCK_AMOUNT : totalBorrows -= _margin;
+        margin >= totalBorrows ? 
+        totalBorrows = Math.INIT_LOCK_AMOUNT : totalBorrows -= margin;
     }
 }

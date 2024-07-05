@@ -14,36 +14,36 @@ interface IController {
     function LPStaking() external view returns(address);
     function govToken() external view returns(address);
 
-    function setErrors(string[] calldata _errors) external;
+    function setErrors(string[] calldata errors) external;
 
     function setTokenConfig(
-        address _indexToken,
-        uint _tokenAmount,
-        uint _stableAmount,
-        uint _maxTotalLongSizes,
-        uint _maxTotalShortSizes,
-        address _priceFeed,
-        uint _priceDecimals,
-        address _ammPool,
-        uint _poolDecimals
+        address indexToken,
+        uint tokenAmount,
+        uint stableAmount,
+        uint maxTotalLongSizes,
+        uint maxTotalShortSizes,
+        address tokenPriceFeed,
+        uint priceDecimals,
+        address ammPool,
+        uint poolDecimals
     ) external;
 
-    function setPriceFeedAggregator(address _indexToken, address _priceFeed, uint _priceDecimals) external;
+    function setPriceFeedAggregator(address indexToken, address tokenPriceFeed, uint priceDecimals) external;
 
-    function setAmmPool(address _indexToken, address _ammPool, uint _poolDecimals) external;
+    function setAmmPool(address indexToken, address ammPool, uint poolDecimals) external;
 
-    function deleteTokenConfig(address _indexToken) external;
+    function deleteTokenConfig(address indexToken) external;
 
     function setOracleTokenConfig(
-        address _indexToken,
-        uint _price,
-        uint _refPrice,
-        uint _maxDelta,
-        uint _maxCumulativeDelta
+        address indexToken,
+        uint price,
+        uint refPrice,
+        uint maxDelta,
+        uint maxCumulativeDelta
     ) external;
 
-    function deleteOracleTokenConfig(address _indexToken) external;
+    function deleteOracleTokenConfig(address indexToken) external;
 
-    function distributeFees(uint _extraRewardAmount) external;
+    function distributeFees(uint extraRewardAmount) external;
     
 }

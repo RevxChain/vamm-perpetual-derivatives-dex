@@ -4,10 +4,11 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-import "./interfaces/IVAMM.sol";
-import "./interfaces/IVault.sol";
 import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
+
+import "./interfaces/IVault.sol";
+import "./interfaces/IVAMM.sol";
 
 contract MarketRouter is Governable, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -27,8 +28,8 @@ contract MarketRouter is Governable, ReentrancyGuard {
     mapping(address => bool) public liquidatorsUtility;
     mapping(address => bool) public whitelistedToken;
 
-    modifier whitelisted(address _indexToken, bool _include) {
-        require(whitelistedToken[_indexToken] == _include, "MarketRouter: invalid whitelisted");
+    modifier whitelisted(address indexToken, bool include) {
+        require(whitelistedToken[indexToken] == include, "MarketRouter: invalid whitelisted");
         _;
     }
 
@@ -57,44 +58,44 @@ contract MarketRouter is Governable, ReentrancyGuard {
         liquidatePrivateMode = true;
     }
 
-    function setTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, false) {   
-        whitelistedToken[_indexToken] = true;
+    function setTokenConfig(address indexToken) external onlyHandler(controller) whitelisted(indexToken, false) {   
+        whitelistedToken[indexToken] = true;
     }
 
-    function deleteTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, true) {   
-        whitelistedToken[_indexToken] = false;
+    function deleteTokenConfig(address indexToken) external onlyHandler(controller) whitelisted(indexToken, true) {   
+        whitelistedToken[indexToken] = false;
     }
 
-    function setLiquidator(address _liquidator, bool _bool) external onlyHandlers() {
-        liquidators[_liquidator] = _bool;
+    function setLiquidator(address liquidator, bool set) external onlyHandlers() {
+        liquidators[liquidator] = set;
     }
 
-    function setLiquidatorUtility(address _liquidator, bool _bool) external onlyHandler(utilityStorage) {
-        liquidatorsUtility[_liquidator] = _bool;
+    function setLiquidatorUtility(address liquidator, bool set) external onlyHandler(utilityStorage) {
+        liquidatorsUtility[liquidator] = set;
     }
 
-    function setLiquidatePrivateMode(bool _bool) external onlyHandler(dao) {
-        liquidatePrivateMode = _bool;
+    function setLiquidatePrivateMode(bool set) external onlyHandler(dao) {
+        liquidatePrivateMode = set;
     }
 
     function increasePosition( 
-        address _indexToken, 
-        uint _collateralDelta, 
-        uint _sizeDelta,
-        bool _long
-    ) external nonReentrant() whitelisted(_indexToken, true) {    
-        require(_collateralDelta >= MIN_POSITION_WORTH, "MarketRouter: insufficient collateral");
+        address indexToken, 
+        uint collateralDelta, 
+        uint sizeDelta,
+        bool long
+    ) external nonReentrant() whitelisted(indexToken, true) {    
+        require(collateralDelta >= MIN_POSITION_WORTH, "MarketRouter: insufficient collateral");
         address _user = msg.sender;  
-        IVault(vault).validateLiquidatable(_user, _indexToken, _long, false);
-        validateDelta(_sizeDelta, _collateralDelta);
-        if(_collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, vault, _collateralDelta.precisionToStable());
+        IVault(vault).validateLiquidatable(_user, indexToken, long, false);
+        validateDelta(sizeDelta, collateralDelta);
+        if(collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, vault, collateralDelta.precisionToStable());
 
         IVAMM(VAMM).updateIndex(
             _user,
-            _indexToken, 
-            _collateralDelta, 
-            _sizeDelta, 
-            _long,
+            indexToken, 
+            collateralDelta, 
+            sizeDelta, 
+            long,
             true,
             false,
             address(0)
@@ -102,55 +103,54 @@ contract MarketRouter is Governable, ReentrancyGuard {
     }
 
     function addCollateral( 
-        address _indexToken, 
-        uint _collateralDelta, 
-        bool _long
-    ) external nonReentrant() whitelisted(_indexToken, true) {  
+        address indexToken, 
+        uint collateralDelta, 
+        bool long
+    ) external nonReentrant() whitelisted(indexToken, true) {  
         address _user = msg.sender;  
-        IVault(vault).validateLiquidatable(_user, _indexToken, _long, false);  
-        validateDelta(_collateralDelta, _collateralDelta);  
+        IVault(vault).validateLiquidatable(_user, indexToken, long, false);  
+        validateDelta(collateralDelta, collateralDelta);  
 
-        IERC20(stable).safeTransferFrom(_user, vault, _collateralDelta.precisionToStable());
+        IERC20(stable).safeTransferFrom(_user, vault, collateralDelta.precisionToStable());
 
-        IVault(vault).addCollateral(_user, _indexToken, _collateralDelta, _long);
+        IVault(vault).addCollateral(_user, indexToken, collateralDelta, long);
     }
 
     function withdrawCollateral( 
-        address _indexToken, 
-        uint _collateralDelta, 
-        bool _long
-    ) external nonReentrant() whitelisted(_indexToken, true) { 
+        address indexToken, 
+        uint collateralDelta, 
+        bool long
+    ) external nonReentrant() whitelisted(indexToken, true) { 
         address _user = msg.sender;  
-        IVault(vault).validateLiquidatable(_user, _indexToken, _long, false); 
-        validateDelta(_collateralDelta, _collateralDelta);
-        IVault(vault).withdrawCollateral(_user, _indexToken, _collateralDelta, _long);
+        IVault(vault).validateLiquidatable(_user, indexToken, long, false); 
+        validateDelta(collateralDelta, collateralDelta);
+        IVault(vault).withdrawCollateral(_user, indexToken, collateralDelta, long);
     }
 
     function serviceWithdrawCollateral(
-        address _user, 
-        address _indexToken, 
-        bool _long
-    ) external nonReentrant() whitelisted(_indexToken, false) {
-
-        IVault(vault).serviceWithdrawCollateral(_user, _indexToken, _long);
+        address user, 
+        address indexToken, 
+        bool long
+    ) external nonReentrant() whitelisted(indexToken, false) {
+        IVault(vault).serviceWithdrawCollateral(user, indexToken, long);
     }
 
     function decreasePosition( 
-        address _indexToken, 
-        uint _collateralDelta, 
-        uint _sizeDelta,
-        bool _long
-    ) external nonReentrant() whitelisted(_indexToken, true) { 
+        address indexToken, 
+        uint collateralDelta, 
+        uint sizeDelta,
+        bool long
+    ) external nonReentrant() whitelisted(indexToken, true) { 
         address _user = msg.sender;     
-        IVault(vault).validateLiquidatable(_user, _indexToken, _long, false);
-        validateDelta(_sizeDelta, _collateralDelta);
+        IVault(vault).validateLiquidatable(_user, indexToken, long, false);
+        validateDelta(sizeDelta, collateralDelta);
 
         IVAMM(VAMM).updateIndex(
             _user,
-            _indexToken, 
-            _collateralDelta, 
-            _sizeDelta, 
-            _long,
+            indexToken, 
+            collateralDelta, 
+            sizeDelta, 
+            long,
             false,
             false,
             address(0)
@@ -158,28 +158,28 @@ contract MarketRouter is Governable, ReentrancyGuard {
     }
 
     function liquidatePosition(
-        address _user,
-        address _indexToken,
-        bool _long,
-        address _feeReceiver
-    ) external onlyLiquidator() nonReentrant() whitelisted(_indexToken, true) {
-        IVault(vault).validateLiquidatable(_user, _indexToken, _long, true);
+        address user,
+        address indexToken,
+        bool long,
+        address feeReceiver
+    ) external onlyLiquidator() nonReentrant() whitelisted(indexToken, true) {
+        IVault(vault).validateLiquidatable(user, indexToken, long, true);
 
-        (, uint _sizeDelta, , , ,) = IVault(vault).getPosition(_user, _indexToken, _long);
+        (, uint _sizeDelta, , , ,) = IVault(vault).getPosition(user, indexToken, long);
 
         IVAMM(VAMM).updateIndex(
-            _user, 
-            _indexToken,  
+            user, 
+            indexToken,  
             0,
             _sizeDelta,
-            _long,
+            long,
             false,
             true,
-            _feeReceiver
+            feeReceiver
         );
     }
 
-    function validateDelta(uint _sizeDelta, uint _collateralDelta) internal pure {
-        require(_sizeDelta > 0 || _collateralDelta > 0, "MarketRouter: invalid delta");
+    function validateDelta(uint sizeDelta, uint collateralDelta) internal pure {
+        require(sizeDelta > 0 || collateralDelta > 0, "MarketRouter: invalid delta");
     }
 }

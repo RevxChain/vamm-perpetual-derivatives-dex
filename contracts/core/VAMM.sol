@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "./interfaces/IVault.sol";
-import "./interfaces/IPositionsTracker.sol";
 import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
+
+import "./interfaces/IPositionsTracker.sol";
+import "./interfaces/IVault.sol";
 
 contract VAMM is Governable {
     using Math for uint; 
@@ -36,8 +37,8 @@ contract VAMM is Governable {
         _;
     }
 
-    modifier whitelisted(address _indexToken, bool _include) {
-        require(whitelistedToken[_indexToken] == _include, "VAMM: invalid whitelisted");
+    modifier whitelisted(address indexToken, bool include) {
+        require(whitelistedToken[indexToken] == include, "VAMM: invalid whitelisted");
         _;
     }
 
@@ -60,167 +61,167 @@ contract VAMM is Governable {
         allowedPriceDeviation = 30;
     }
 
-    function setAllowedPriceDeviation(uint _allowedPriceDeviation) external onlyHandler(dao) {
-        require(MAX_ALLOWED_PRICE_DEVIATION >= _allowedPriceDeviation, "VAMM: price deviation exceeded");
-        allowedPriceDeviation = _allowedPriceDeviation;
+    function setAllowedPriceDeviation(uint newAllowedPriceDeviation) external onlyHandler(dao) {
+        require(MAX_ALLOWED_PRICE_DEVIATION >= newAllowedPriceDeviation, "VAMM: price deviation exceeded");
+        allowedPriceDeviation = newAllowedPriceDeviation;
     }
 
     function setTokenConfig(
-        address _indexToken,
-        uint _indexAmount,
-        uint _stableAmount,
-        uint _referencePrice
-    ) external onlyHandler(controller) whitelisted(_indexToken, false) {      
-        validateLiquidity(_indexAmount, _stableAmount);
-        validatePriceDeviation(_indexToken, _indexAmount, _stableAmount, _referencePrice, true);
+        address indexToken,
+        uint indexAmount,
+        uint stableAmount,
+        uint referencePrice
+    ) external onlyHandler(controller) whitelisted(indexToken, false) {      
+        validateLiquidity(indexAmount, stableAmount);
+        validatePriceDeviation(indexToken, indexAmount, stableAmount, referencePrice, true);
 
-        Pair storage pair = pairs[_indexToken]; 
-        pair.indexAmount = _indexAmount;
-        pair.stableAmount = _stableAmount;
-        pair.liquidity = _indexAmount * _stableAmount;
+        Pair storage pair = pairs[indexToken]; 
+        pair.indexAmount = indexAmount;
+        pair.stableAmount = stableAmount;
+        pair.liquidity = indexAmount * stableAmount;
         pair.lastUpdateTime = block.timestamp;
 
-        whitelistedToken[_indexToken] = true;
+        whitelistedToken[indexToken] = true;
     }
 
-    function deleteTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, true) {   
-        whitelistedToken[_indexToken] = false;
+    function deleteTokenConfig(address indexToken) external onlyHandler(controller) whitelisted(indexToken, true) {   
+        whitelistedToken[indexToken] = false;
 
-        delete pairs[_indexToken];
+        delete pairs[indexToken];
     }
 
     function updateIndex(
-        address _user, 
-        address _indexToken, 
-        uint _collateralDelta, 
-        uint _sizeDelta,
-        bool _long,
-        bool _increase,
-        bool _liquidation,
-        address _feeReceiver
-    ) external onlyRouter() whitelisted(_indexToken, true) {   
-        Pair storage pair = pairs[_indexToken]; 
+        address user, 
+        address indexToken, 
+        uint collateralDelta, 
+        uint sizeDelta,
+        bool long,
+        bool increase,
+        bool liquidation,
+        address feeReceiver
+    ) external onlyRouter() whitelisted(indexToken, true) {   
+        Pair storage pair = pairs[indexToken]; 
 
-        uint _markPrice = getPrice(_indexToken);
+        uint _markPrice = getPrice(indexToken);
 
-        if(_sizeDelta > 0){
+        if(sizeDelta > 0){
             uint _newStableAmount;
             uint _newIndexAmount;
-            (_newStableAmount, _newIndexAmount, _markPrice) = preCalculatePrice(_indexToken, _sizeDelta, _increase, _long);
+            (_newStableAmount, _newIndexAmount, _markPrice) = preCalculatePrice(indexToken, sizeDelta, increase, long);
 
             pair.stableAmount = _newStableAmount;
             pair.indexAmount = _newIndexAmount;
         }
 
-        if(_increase){
+        if(increase){
             IVault(vault).increasePosition(
-                _user, 
-                _indexToken, 
-                _collateralDelta, 
-                _sizeDelta,
-                _long,
+                user, 
+                indexToken, 
+                collateralDelta, 
+                sizeDelta,
+                long,
                 _markPrice
             );
 
-            IPositionsTracker(positionsTracker).increaseTotalSizes(_indexToken, _sizeDelta, _markPrice, _long);
+            IPositionsTracker(positionsTracker).increaseTotalSizes(indexToken, sizeDelta, _markPrice, long);
         } else {
-            !_liquidation ? 
+            !liquidation ? 
             IVault(vault).decreasePosition(
-                _user, 
-                _indexToken, 
-                _collateralDelta, 
-                _sizeDelta,
-                _long,
+                user, 
+                indexToken, 
+                collateralDelta, 
+                sizeDelta,
+                long,
                 _markPrice
             ) :
             IVault(vault).liquidatePosition(
-                _user,  
-                _indexToken,
-                _sizeDelta,
-                _long, 
-                _feeReceiver
+                user,  
+                indexToken,
+                sizeDelta,
+                long, 
+                feeReceiver
             );
 
-            IPositionsTracker(positionsTracker).decreaseTotalSizes(_indexToken, _sizeDelta, _markPrice, _long);
+            IPositionsTracker(positionsTracker).decreaseTotalSizes(indexToken, sizeDelta, _markPrice, long);
         } 
     }
 
     // test function
     function setPrice(
-        address _indexToken, 
-        uint _indexAmount,
-        uint _stableAmount
+        address indexToken, 
+        uint indexAmount,
+        uint stableAmount
     ) external {
-        Pair storage pair = pairs[_indexToken]; 
-        pair.indexAmount = _indexAmount;
-        pair.stableAmount = _stableAmount;
-        pair.liquidity = _indexAmount * _stableAmount;
+        Pair storage pair = pairs[indexToken]; 
+        pair.indexAmount = indexAmount;
+        pair.stableAmount = stableAmount;
+        pair.liquidity = indexAmount * stableAmount;
     }
 
     function setLiquidity(
-        address _indexToken, 
-        uint _indexAmount, 
-        uint _stableAmount
-    ) external onlyHandlers() whitelisted(_indexToken, true) {
-        validateLiquidity(_indexAmount, _stableAmount);
-        Pair storage pair = pairs[_indexToken]; 
+        address indexToken, 
+        uint indexAmount, 
+        uint stableAmount
+    ) external onlyHandlers() whitelisted(indexToken, true) {
+        validateLiquidity(indexAmount, stableAmount);
+        Pair storage pair = pairs[indexToken]; 
         require(block.timestamp >= pair.lastUpdateTime + MIN_LIQUIDITY_UPDATE_DELAY, "VAMM: premature update");
-        validatePriceDeviation(_indexToken, _indexAmount, _stableAmount, 0, false);
+        validatePriceDeviation(indexToken, indexAmount, stableAmount, 0, false);
 
-        pair.indexAmount = _indexAmount;
-        pair.stableAmount = _stableAmount;
-        pair.liquidity = _indexAmount * _stableAmount;
+        pair.indexAmount = indexAmount;
+        pair.stableAmount = stableAmount;
+        pair.liquidity = indexAmount * stableAmount;
         pair.lastUpdateTime = block.timestamp;
     }
 
-    function getData(address _indexToken) external view returns(uint, uint, uint, uint) {
-        Pair memory pair = pairs[_indexToken]; 
+    function getData(address indexToken) external view returns(uint, uint, uint, uint) {
+        Pair memory pair = pairs[indexToken]; 
         return (pair.indexAmount, pair.stableAmount, pair.liquidity, pair.lastUpdateTime);
     }
 
-    function getPrice(address _indexToken) public view returns(uint) {
-        return pairs[_indexToken].stableAmount.mulDiv(Math.ACCURACY, pairs[_indexToken].indexAmount);
+    function getPrice(address indexToken) public view returns(uint) {
+        return pairs[indexToken].stableAmount.mulDiv(Math.ACCURACY, pairs[indexToken].indexAmount);
     }
 
     function preCalculatePrice(
-        address _indexToken, 
-        uint _sizeDelta, 
-        bool _increase, 
-        bool _long
+        address indexToken, 
+        uint sizeDelta, 
+        bool increase, 
+        bool long
     ) public view returns(uint newStableAmount, uint newIndexAmount, uint markPrice) {
         uint _outputIndexed; 
-        Pair memory pair = pairs[_indexToken]; 
+        Pair memory pair = pairs[indexToken]; 
 
-        if(_increase && !_long || !_increase && _long){
-            newStableAmount = pair.stableAmount - _sizeDelta;
+        if(increase && !long || !increase && long){
+            newStableAmount = pair.stableAmount - sizeDelta;
             newIndexAmount = pair.liquidity / newStableAmount;
             _outputIndexed = newIndexAmount - pair.indexAmount;
         } else {
-            newStableAmount = pair.stableAmount + _sizeDelta;
+            newStableAmount = pair.stableAmount + sizeDelta;
             newIndexAmount = pair.liquidity / newStableAmount;
             _outputIndexed = pair.indexAmount - newIndexAmount;
         }
 
-        markPrice = _sizeDelta.mulDiv(Math.ACCURACY, _outputIndexed);
+        markPrice = sizeDelta.mulDiv(Math.ACCURACY, _outputIndexed);
     }
 
     function validatePriceDeviation(
-        address _indexToken, 
-        uint _indexAmount, 
-        uint _stableAmount,
-        uint _referencePrice,
-        bool _init
+        address indexToken, 
+        uint indexAmount, 
+        uint stableAmount,
+        uint referencePrice,
+        bool init
     ) internal view {
-        _referencePrice = _init ? _referencePrice : getPrice(_indexToken);
-        uint _newMarkPrice = _stableAmount.mulDiv(Math.ACCURACY, _indexAmount);
-        uint _maxPriceDelta = _referencePrice.mulDiv(allowedPriceDeviation, Math.PRECISION);
+        referencePrice = init ? referencePrice : getPrice(indexToken);
+        uint _newMarkPrice = stableAmount.mulDiv(Math.ACCURACY, indexAmount);
+        uint _maxPriceDelta = referencePrice.mulDiv(allowedPriceDeviation, Math.PRECISION);
 
-        _newMarkPrice > _referencePrice ? 
-        require(_referencePrice + _maxPriceDelta >= _newMarkPrice, "VAMM: max deviation overflow") : 
-        require(_newMarkPrice >= _referencePrice - _maxPriceDelta, "VAMM: max deviation underflow");
+        _newMarkPrice > referencePrice ? 
+        require(referencePrice + _maxPriceDelta >= _newMarkPrice, "VAMM: max deviation overflow") : 
+        require(_newMarkPrice >= referencePrice - _maxPriceDelta, "VAMM: max deviation underflow");
     }
 
-    function validateLiquidity(uint _indexAmount, uint _stableAmount) internal pure {
-        require(_indexAmount * _stableAmount >= MIN_LIQUIDITY, "VAMM: invalid liquidity amount"); 
+    function validateLiquidity(uint indexAmount, uint stableAmount) internal pure {
+        require(indexAmount * stableAmount >= MIN_LIQUIDITY, "VAMM: invalid liquidity amount"); 
     }
 }

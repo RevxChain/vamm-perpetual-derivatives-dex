@@ -11,8 +11,8 @@ contract LiquidityManagerProxy {
 
     address internal implementation;
 
-    constructor(address _implementation) {
-        implementation = _implementation;
+    constructor(address newImplementation) {
+        implementation = newImplementation;
     }
 
     fallback() external payable {

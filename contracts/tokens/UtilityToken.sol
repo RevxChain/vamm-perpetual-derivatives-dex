@@ -46,33 +46,33 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         __baseURI = baseURI_;
     }
 
-    function mint(address[] calldata _user, uint[] calldata _typeId) external onlyHandler(gov) {
-        require(_user.length == _typeId.length, "UtilityToken: invalid data array length");
-        require(MAX_TOTAL_SUPPLY >= totalSupply() + _user.length, "UtilityToken: global max total supply exhausted");
-        for(uint i; _user.length > i; i++){
-            _mintInternal(_user[i], _typeId[i]);
+    function mint(address[] calldata user, uint[] calldata typeID) external onlyHandler(gov) {
+        require(user.length == typeID.length, "UtilityToken: invalid data array length");
+        require(MAX_TOTAL_SUPPLY >= totalSupply() + user.length, "UtilityToken: global max total supply exhausted");
+        for(uint i; user.length > i; i++){
+            _mintInternal(user[i], typeID[i]);
         }
     }
 
     function setInitTypeData( 
-        string calldata _grade, 
-        uint _maxTotalSupply, 
-        uint _maxLeverage, 
-        bool _operatingFee, 
-        bool _liquidator, 
-        uint _votePower,
-        uint _flashLoanFee
+        string calldata grade, 
+        uint maxTotalSupply, 
+        uint maxLeverage, 
+        bool operatingFee, 
+        bool liquidator, 
+        uint votePower,
+        uint flashLoanFee
     ) external onlyHandler(gov) {
         require(TOTAL_TYPES > totalTypes, "UtilityToken: total types exceeded");
         utilities[totalTypes] = Utility({
-            grade: _grade,
+            grade: grade,
             totalSupply: 0,
-            maxTotalSupply: _maxTotalSupply,
-            maxLeverage: _maxLeverage,
-            operatingFee: _operatingFee,
-            liquidator: _liquidator,
-            votePower: _votePower,
-            flashLoanFee: _flashLoanFee,
+            maxTotalSupply: maxTotalSupply,
+            maxLeverage: maxLeverage,
+            operatingFee: operatingFee,
+            liquidator: liquidator,
+            votePower: votePower,
+            flashLoanFee: flashLoanFee,
             lastUpdated: block.timestamp
         });
 
@@ -80,26 +80,26 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
     }
 
     function updateTypeData(
-        uint _typeId,  
-        uint _maxLeverage, 
-        bool _operatingFee, 
-        bool _liquidator, 
-        uint _votePower,
-        uint _flashLoanFee
+        uint typeID,  
+        uint maxLeverage, 
+        bool operatingFee, 
+        bool liquidator, 
+        uint votePower,
+        uint flashLoanFee
     ) external onlyHandler(dao) {
-        Utility storage utility = utilities[_typeId];
-        require(totalTypes > _typeId, "UtilityToken: invalid type Id");
+        Utility storage utility = utilities[typeID];
+        require(totalTypes > typeID, "UtilityToken: invalid type Id");
         require(block.timestamp >= utility.lastUpdated + ONE_YEAR, "UtilityToken: too soon to update");
-        utility.maxLeverage = _maxLeverage;
-        utility.operatingFee =_operatingFee;
-        utility.liquidator = _liquidator;
-        utility.votePower = _votePower;
-        utility.flashLoanFee = _flashLoanFee;
+        utility.maxLeverage = maxLeverage;
+        utility.operatingFee =operatingFee;
+        utility.liquidator = liquidator;
+        utility.votePower = votePower;
+        utility.flashLoanFee = flashLoanFee;
         utility.lastUpdated = block.timestamp;
     }
 
-    function getUtility(uint _tokenId) external view returns(uint, bool, bool, uint, uint) {
-        uint _typeId = typeId[_tokenId];
+    function getUtility(uint tokenId) external view returns(uint, bool, bool, uint, uint) {
+        uint _typeId = typeId[tokenId];
         Utility memory utility = utilities[_typeId];
         return (
             utility.maxLeverage, 
@@ -110,12 +110,12 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
         );
     }
 
-    function _mintInternal(address _user, uint _typeId) internal {
-        Utility storage utility = utilities[_typeId];
+    function _mintInternal(address user, uint typeID) internal {
+        Utility storage utility = utilities[typeID];
         require(utility.maxTotalSupply > utility.totalSupply, "UtilityToken: type Id max total supply exhausted");
         utility.totalSupply += 1;
-        typeId[totalSupply()] = _typeId;
-        _safeMint(_user, totalSupply());
+        typeId[totalSupply()] = typeID;
+        _safeMint(user, totalSupply());
     }
 
     function _baseURI() internal view override returns(string memory) {

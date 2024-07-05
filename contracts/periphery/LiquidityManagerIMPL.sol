@@ -6,11 +6,12 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@aave/periphery-v3/contracts/rewards/interfaces/IRewardsController.sol";
 
-import "../core/interfaces/IPositionsTracker.sol";
 import "../libraries/ImplementationSlot.sol";
-import "../core/interfaces/IVault.sol";
 import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
+
+import "../core/interfaces/IPositionsTracker.sol";
+import "../core/interfaces/IVault.sol";
 
 contract LiquidityManagerIMPL is ImplementationSlot, Governable, ReentrancyGuard  {
     using SafeERC20 for IERC20;   
@@ -74,7 +75,7 @@ contract LiquidityManagerIMPL is ImplementationSlot, Governable, ReentrancyGuard
         minRemoveAllowedShare = 1000;
     }
 
-    function setNewImplementation(address _implementation, string calldata _strategy) external onlyHandler(dao) {
+    function setNewImplementation(address newImplementation, string calldata newStrategy) external onlyHandler(dao) {
         require(isInitialized, "LiquidityManager: not initialized");
         if(active){
             newImplEnabled = true;
@@ -102,81 +103,81 @@ contract LiquidityManagerIMPL is ImplementationSlot, Governable, ReentrancyGuard
         delete rewardsController;
         delete extraReward;
 
-        strategy = _strategy;
-        implementation = _implementation;
+        strategy = newStrategy;
+        implementation = newImplementation;
     }
 
     function setStrategySettings(
-        Settings calldata _addSetup, 
-        Settings calldata _removeSetup
+        Settings calldata addSetup, 
+        Settings calldata removeSetup
     ) external onlyHandler(dao) {
         string memory _error = "LiquidityManager: invalid settings";
         require(isInitialized, "LiquidityManager: not initialized");
         require(!active, "LiquidityManager: active");
         require(targetPool != address(0), "LiquidityManager: main settings not initialized");
-        require(_addSetup.allowedSupplyRate > _removeSetup.allowedSupplyRate, _error);
-        require(_removeSetup.utilizationRateKink > _addSetup.utilizationRateKink, _error);
-        require(_addSetup.availableLiquidityKink > _removeSetup.availableLiquidityKink, _error);
-        require(_addSetup.poolAmountKink > _removeSetup.poolAmountKink, _error);
-        require(_removeSetup.totalPositionsDeltaKink > _addSetup.totalPositionsDeltaKink, _error);
-        require(Math.PRECISION >= _addSetup.allowedShare, _error);
-        require(Math.PRECISION >= _removeSetup.allowedShare, _error);
-        require(_removeSetup.allowedShare >= minRemoveAllowedShare, _error);
-        addSlot = _addSetup;
-        removeSlot = _removeSetup;
+        require(addSetup.allowedSupplyRate > removeSetup.allowedSupplyRate, _error);
+        require(removeSetup.utilizationRateKink > addSetup.utilizationRateKink, _error);
+        require(addSetup.availableLiquidityKink > removeSetup.availableLiquidityKink, _error);
+        require(addSetup.poolAmountKink > removeSetup.poolAmountKink, _error);
+        require(removeSetup.totalPositionsDeltaKink > addSetup.totalPositionsDeltaKink, _error);
+        require(Math.PRECISION >= addSetup.allowedShare, _error);
+        require(Math.PRECISION >= removeSetup.allowedShare, _error);
+        require(removeSetup.allowedShare >= minRemoveAllowedShare, _error);
+        addSlot = addSetup;
+        removeSlot = removeSetup;
     }
 
-    function setUsageEnabled(bool _enabled) external onlyHandler(dao) {
+    function setUsageEnabled(bool enabled) external onlyHandler(dao) {
         require(!active, "LiquidityManager: active");
-        usageEnabled = _enabled;
+        usageEnabled = enabled;
     }
 
-    function setAutoUsageEnabled(bool _enabled) external onlyHandler(dao) {
-        autoUsageEnabled = _enabled;
+    function setAutoUsageEnabled(bool enabled) external onlyHandler(dao) {
+        autoUsageEnabled = enabled;
     }
 
-    function setManualUsageEnabled(bool _enabled) external onlyHandler(dao) {
-        manualUsageEnabled = _enabled;
+    function setManualUsageEnabled(bool enabled) external onlyHandler(dao) {
+        manualUsageEnabled = enabled;
     }
 
-    function setTotalPositionsConsider(bool _consider) external onlyHandler(dao) {
-        totalPositionsConsider = _consider;
+    function setTotalPositionsConsider(bool consider) external onlyHandler(dao) {
+        totalPositionsConsider = consider;
     }
 
-    function provideLiquidity(uint _amount) external onlyHandler(vault) nonReentrant() {
+    function provideLiquidity(uint amount) external onlyHandler(vault) nonReentrant() {
         Settings storage slot = addSlot;
-        if(_amount > IERC20(stable).balanceOf(address(this))){
+        if(amount > IERC20(stable).balanceOf(address(this))){
             IERC20(stable).safeTransfer(vault, IERC20(stable).balanceOf(address(this)));
             return;
         }
         
-        if(slot.allowedAmount > _amount) slot.allowedAmount = _amount;
+        if(slot.allowedAmount > amount) slot.allowedAmount = amount;
         
-        IERC20(stable).approve(targetPool, _amount);
+        IERC20(stable).approve(targetPool, amount);
         (bool _success, bytes memory _response) = targetPool.call(
-            abi.encodeWithSignature("supply(address,uint256,address,uint16)", stable, _amount, address(this), referralCode)
+            abi.encodeWithSignature("supply(address,uint256,address,uint16)", stable, amount, address(this), referralCode)
         ); 
 
         if(_success){
             active = true;
-            initStableAmount = _amount;
+            initStableAmount = amount;
             aTokenAmount = IERC20(aToken).balanceOf(address(this));
 
             emit Success(_response, block.timestamp);
         } else {
             IERC20(stable).approve(targetPool, 0);
-            IERC20(stable).safeTransfer(vault, _amount);
+            IERC20(stable).safeTransfer(vault, amount);
 
             emit Failure(_response, block.timestamp);
         }
     } 
 
-    function removeLiquidity(uint _amount) external onlyHandler(vault) nonReentrant() returns(bool success, uint earnedAmount) {
+    function removeLiquidity(uint amount) external onlyHandler(vault) nonReentrant() returns(bool success, uint earnedAmount) {
         bytes memory _response;
 
         IERC20(aToken).approve(targetPool, IERC20(aToken).balanceOf(address(this)));
         (success, _response) = targetPool.call(
-            abi.encodeWithSignature("withdraw(address,uint256,address)", stable, _amount, vault)
+            abi.encodeWithSignature("withdraw(address,uint256,address)", stable, amount, vault)
         ); 
 
         if(success){
@@ -210,12 +211,12 @@ contract LiquidityManagerIMPL is ImplementationSlot, Governable, ReentrancyGuard
         IVault(vault).manualUseLiquidity();
     }
 
-    function checkUsage(bool _auto) public view returns(bool allowed, uint amount) {
+    function checkUsage(bool autoUsage) public view returns(bool allowed, uint amount) {
         Settings memory slot = addSlot; 
         if(!usageEnabled) return(false, 0);
         if(active) return(false, 0);
-        if(_auto && !autoUsageEnabled) return(false, 0);
-        if(!_auto && !manualUsageEnabled) return(false, 0);
+        if(autoUsage && !autoUsageEnabled) return(false, 0);
+        if(!autoUsage && !manualUsageEnabled) return(false, 0);
         if(slot.allowedShare == 0) return(false, 0);
         if(targetPool == address(0)) return(false, 0);
         if(aToken != IPool(targetPool).getReserveData(stable).aTokenAddress) return(false, 0);
@@ -235,15 +236,15 @@ contract LiquidityManagerIMPL is ImplementationSlot, Governable, ReentrancyGuard
         if(amount > slot.allowedAmount) amount = slot.allowedAmount;
     }
     
-    function checkRemove(bool _auto) public view returns(bool allowed, uint amount) {
+    function checkRemove(bool autoUsage) public view returns(bool allowed, uint amount) {
         Settings memory slot = removeSlot;
         amount = IERC20(aToken).balanceOf(address(this));
         if(aToken != IPool(targetPool).getReserveData(stable).aTokenAddress) return(false, 0);
         if(!active) return(false, 0);
         if(newImplEnabled) return(true, amount);
         if(!usageEnabled) return(false, 0);
-        if(_auto && !autoUsageEnabled) return(false, 0);
-        if(!_auto && !manualUsageEnabled) return(false, 0);
+        if(autoUsage && !autoUsageEnabled) return(false, 0);
+        if(!autoUsage && !manualUsageEnabled) return(false, 0);
         
         (uint _poolAmount, uint _availableLiquidity, uint _utilizationRate) = getVaultState();
         (bool _isActual, bool _hasTradersProfit, uint _totalPositionsDelta) = IPositionsTracker(positionsTracker).getPositionsData();

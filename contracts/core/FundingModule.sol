@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import "./BorrowingModule.sol";
+
 import "./interfaces/IVAMM.sol";
 import "../oracle/interfaces/IPriceFeed.sol";
 
@@ -24,28 +25,28 @@ contract FundingModule is BorrowingModule {
         uint lastFundingUpdateTime; 
     }
 
-    function setFundingPriceMultiplier(uint _fundingPriceMultiplier) external onlyHandler(dao) {
-        validate(MAX_FUNDING_PRICE_MULTIPLIER >= _fundingPriceMultiplier , 31);
-        validate(_fundingPriceMultiplier >= Math.INIT_LOCK_AMOUNT, 32);
-        fundingPriceMultiplier = _fundingPriceMultiplier;
+    function setFundingPriceMultiplier(uint newFundingPriceMultiplier) external onlyHandler(dao) {
+        validate(MAX_FUNDING_PRICE_MULTIPLIER >= newFundingPriceMultiplier , 31);
+        validate(newFundingPriceMultiplier >= Math.INIT_LOCK_AMOUNT, 32);
+        fundingPriceMultiplier = newFundingPriceMultiplier;
     }
 
-    function updateTotalFunding(address _indexToken) public returns(uint, uint) {
-        Funding storage funding = fundings[_indexToken];
+    function updateTotalFunding(address indexToken) public returns(uint, uint) {
+        Funding storage funding = fundings[indexToken];
         if(block.timestamp - funding.lastFundingUpdateTime > 0){
-            (funding.totalLongFunding, funding.totalShortFunding) = preUpdateTotalFunding(_indexToken);
+            (funding.totalLongFunding, funding.totalShortFunding) = preUpdateTotalFunding(indexToken);
             funding.lastFundingUpdateTime = block.timestamp;
         }
 
         return (funding.totalLongFunding, funding.totalShortFunding);
     }
 
-    function preUpdateTotalFunding(address _indexToken) public view returns(uint, uint) {
-        Funding memory funding = fundings[_indexToken];
+    function preUpdateTotalFunding(address indexToken) public view returns(uint, uint) {
+        Funding memory funding = fundings[indexToken];
         uint _updateTime = funding.lastFundingUpdateTime;
         if(block.timestamp - _updateTime > 0){
-            uint _vammPrice = IVAMM(VAMM).getPrice(_indexToken);
-            uint _feedPrice = IPriceFeed(priceFeed).getPrice(_indexToken);
+            uint _vammPrice = IVAMM(VAMM).getPrice(indexToken);
+            uint _feedPrice = IPriceFeed(priceFeed).getPrice(indexToken);
             uint _fundingFeeRate = (getPriceDelta(_vammPrice, _feedPrice).mulDiv(Math.ACCURACY, _vammPrice)).mulDiv(fundingPriceMultiplier, Math.PRECISION); 
             uint _totalFundingIncrease;
 
@@ -64,16 +65,16 @@ contract FundingModule is BorrowingModule {
     }
 
     function preCalculateUserFundingFee(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) public view returns(uint delta, bool hasProfit, uint fundingFeeDebt, uint fundingFeeGain) {
-        bytes32 _key = calculatePositionKey(_user, _indexToken, _long);
-        Funding memory funding = fundings[_indexToken];
+        bytes32 _key = calculatePositionKey(user, indexToken, long);
+        Funding memory funding = fundings[indexToken];
         Position memory position = positions[_key];
-        (uint _totalLongFunding, uint _totalShortFunding) = preUpdateTotalFunding(_indexToken);
+        (uint _totalLongFunding, uint _totalShortFunding) = preUpdateTotalFunding(indexToken);
 
-        if(_long){
+        if(long){
             fundingFeeDebt = position.entryFunding.mulDiv(_totalLongFunding, funding.fundingLongSharePool);
             fundingFeeGain = position.entryFunding.mulDiv(funding.fundingLongFeeAmount, funding.fundingLongSharePool);
         } else {
@@ -90,16 +91,16 @@ contract FundingModule is BorrowingModule {
         }
     }
 
-    function calculateUserFundingFeeDebt(bytes32 _key, address _indexToken, bool _long) internal view returns(uint) {
-        Funding memory funding = fundings[_indexToken];
-        Position memory position = positions[_key];
-        return _long ?
+    function calculateUserFundingFeeDebt(bytes32 key, address indexToken, bool long) internal view returns(uint) {
+        Funding memory funding = fundings[indexToken];
+        Position memory position = positions[key];
+        return long ?
         position.entryFunding.mulDiv(funding.totalLongFunding, funding.fundingLongSharePool) : 
         position.entryFunding.mulDiv(funding.totalShortFunding, funding.fundingShortSharePool);
     }
 
-    function setFundingTokenConfig(address _indexToken) internal {     
-        fundings[_indexToken] = Funding({
+    function setFundingTokenConfig(address indexToken) internal {     
+        fundings[indexToken] = Funding({
             totalLongFunding: Math.INIT_LOCK_AMOUNT,
             totalShortFunding: Math.INIT_LOCK_AMOUNT,
             fundingLongSharePool: Math.INIT_LOCK_AMOUNT,
@@ -110,37 +111,37 @@ contract FundingModule is BorrowingModule {
         });
     }
 
-    function deleteFundingTokenConfig(address _indexToken) internal {     
-        delete fundings[_indexToken];
+    function deleteFundingTokenConfig(address indexToken) internal {     
+        delete fundings[indexToken];
     }
 
-    function getEntryFunding(bytes32 _key, address _indexToken, uint _sizeDelta, bool _long) internal { 
-        Funding storage funding = fundings[_indexToken];
-        Position storage position = positions[_key];
+    function getEntryFunding(bytes32 key, address indexToken, uint sizeDelta, bool long) internal { 
+        Funding storage funding = fundings[indexToken];
+        Position storage position = positions[key];
         uint _userShares;
-        if(_long){
-            _userShares = _sizeDelta.mulDiv(funding.fundingLongSharePool, funding.totalLongFunding);
+        if(long){
+            _userShares = sizeDelta.mulDiv(funding.fundingLongSharePool, funding.totalLongFunding);
             position.entryFunding += _userShares;
             funding.fundingLongSharePool += _userShares;
-            funding.totalLongFunding += _sizeDelta;
+            funding.totalLongFunding += sizeDelta;
         } else {
-            _userShares = _sizeDelta.mulDiv(funding.fundingShortSharePool, funding.totalShortFunding);
+            _userShares = sizeDelta.mulDiv(funding.fundingShortSharePool, funding.totalShortFunding);
             position.entryFunding += _userShares;
             funding.fundingShortSharePool += _userShares;
-            funding.totalShortFunding += _sizeDelta;
+            funding.totalShortFunding += sizeDelta;
         }
     }
 
     function collectFundingFee(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) internal returns(uint delta, bool hasProfit) {
-        Funding storage funding = fundings[_indexToken];
-        uint _fundingFeeDebt;
-        uint _fundingFeeGain;
-        (delta, hasProfit, _fundingFeeDebt, _fundingFeeGain) = preCalculateUserFundingFee(_user, _indexToken, _long);
-        if(_long){
+        Funding storage funding = fundings[indexToken];
+        (uint _fundingFeeDebt, uint _fundingFeeGain) = (0, 0);
+        (delta, hasProfit, _fundingFeeDebt, _fundingFeeGain) = preCalculateUserFundingFee(user, indexToken, long);
+        
+        if(long){
             funding.totalLongFunding -= _fundingFeeDebt;
             funding.fundingLongFeeAmount -= _fundingFeeGain;
             if(!hasProfit) funding.fundingShortFeeAmount += delta;
@@ -152,19 +153,19 @@ contract FundingModule is BorrowingModule {
     }
     
     function fundingFeeRedeem(
-        bytes32 _key, 
-        address _indexToken, 
-        uint _sizeDelta,
-        bool _long
+        bytes32 key, 
+        address indexToken, 
+        uint sizeDelta,
+        bool long
     ) internal {
-        Funding storage funding = fundings[_indexToken];
-        Position storage position = positions[_key];
+        Funding storage funding = fundings[indexToken];
+        Position storage position = positions[key];
         uint _userFundingFeeDebt = 
-        calculateUserFundingFeeDebt(_key, _indexToken, _long) > _sizeDelta ? 
-        calculateUserFundingFeeDebt(_key, _indexToken, _long) - _sizeDelta : 0;
+        calculateUserFundingFeeDebt(key, indexToken, long) > sizeDelta ? 
+        calculateUserFundingFeeDebt(key, indexToken, long) - sizeDelta : 0;
         uint _sharePoolDecrease;
         if(_userFundingFeeDebt > 0){
-            if(_long){
+            if(long){
                 _sharePoolDecrease = _userFundingFeeDebt.mulDiv(funding.fundingLongSharePool, funding.totalLongFunding);
                 if(shouldValidatePoolShares) validatePoolShares(
                     funding.totalLongFunding, 

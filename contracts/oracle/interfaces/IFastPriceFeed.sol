@@ -14,50 +14,50 @@ interface IFastPriceFeed {
     function globalDenials() external view returns(int);
     function priceFeed() external view returns(address);
 
-    function watchers(address _watcher) external view returns(bool);
-    function whitelistedToken(address _indexToken) external view returns(bool);
-    function priceDenied(address _indexToken, address _watcher) external view returns(bool);
+    function watchers(address watcher) external view returns(bool);
+    function whitelistedToken(address indexToken) external view returns(bool);
+    function priceDenied(address indexToken, address watcher) external view returns(bool);
 
-    function setWatcher(address _watcher) external;
+    function setWatcher(address watcher) external;
 
-    function deleteWatcher(address _watcher) external;
+    function deleteWatcher(address watcher) external;
 
-    function setProvider(address _provider) external;
+    function setProvider(address providerAddress) external;
 
-    function deleteProvider(address _provider) external;
+    function deleteProvider(address providerAddress) external;
 
-    function discardDenials(address _indexToken) external;
+    function discardDenials(address indexToken) external;
 
-    function blockProvider(address _provider) external;
+    function blockProvider(address providerAddress) external;
 
-    function denyPrice(address _indexToken) external;
+    function denyPrice(address indexToken) external;
 
-    function cancelDenyPrice(address _indexToken) external;
+    function cancelDenyPrice(address indexToken) external;
 
-    function denyAmmPoolPrice(address _indexToken) external;
+    function denyAmmPoolPrice(address indexToken) external;
 
-    function setMaxTimeDeviation(uint _maxTimeDeviation) external;
+    function setMaxTimeDeviation(uint newMaxTimeDeviation) external;
 
-    function setPriceDuration(uint _priceDuration) external;
+    function setPriceDuration(uint newPriceDuration) external;
 
-    function setMinBlockInterval(uint _minBlockInterval) external;
+    function setMinBlockInterval(uint newMinBlockInterval) external;
 
-    function setLastUpdatedAt(uint _lastUpdatedAt) external;
+    function setLastUpdatedAt(uint newLastUpdatedAt) external;
     
-    function setLastUpdatedBlock(uint _lastUpdatedBlock) external;
+    function setLastUpdatedBlock(uint newLastUpdatedBlock) external;
 
-    function setPriceDataInterval(uint _priceDataInterval) external;
+    function setPriceDataInterval(uint newPriceDataInterval) external;
 
-    function setMaxDelta(address _indexToken, uint _maxDelta) external;
+    function setMaxDelta(address indexToken, uint maxDelta) external;
 
-    function setMaxCumulativeDelta(address _indexToken, uint _maxCumulativeDelta) external;
+    function setMaxCumulativeDelta(address indexToken, uint maxCumulativeDelta) external;
 
-    function setTokenConfig(address _indexToken, uint _price, uint _refPrice, uint _maxDelta, uint _maxCumulativeDelta) external;
+    function setTokenConfig(address indexToken, uint price, uint refPrice, uint maxDelta, uint maxCumulativeDelta) external;
 
-    function deleteTokenConfig(address _indexToken) external;
+    function deleteTokenConfig(address indexToken) external;
 
-    function setPrices(address[] memory _indexTokens, uint[] memory _prices, uint _timestamp) external;
+    function setPrices(address[] memory indexTokens, uint[] memory prices, uint timestamp) external;
 
-    function getPrice(address _indexToken, uint _refPrice) external view returns(uint);
+    function getPrice(address indexToken, uint refPrice) external view returns(uint);
    
 }

@@ -7,8 +7,8 @@ interface IGovernable {
     function dao() external view returns(address);
     function controller() external view returns(address);
 
-    function setGov(address _gov) external;
+    function setGov(address newGov) external;
 
-    function setDao(address _dao) external;
+    function setDao(address newDao) external;
 
 }

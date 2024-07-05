@@ -8,30 +8,31 @@ interface IMarketRouter {
     function stable() external view returns(address);
     function utilityStorage() external view returns(address);
     function liquidatePrivateMode() external view returns(bool);
-    function liquidators(address _liquidator) external view returns(bool);
-    function liquidatorsUtility(address _liquidator) external view returns(bool);
-    function whitelistedToken(address _indexToken) external view returns(bool);
 
-    function setTokenConfig(address _indexToken) external;
+    function liquidators(address liquidator) external view returns(bool);
+    function liquidatorsUtility(address liquidator) external view returns(bool);
+    function whitelistedToken(address indexToken) external view returns(bool);
 
-    function deleteTokenConfig(address _indexToken) external;
+    function setTokenConfig(address indexToken) external;
 
-    function setLiquidator(address _liquidator, bool _bool) external;
+    function deleteTokenConfig(address indexToken) external;
 
-    function setLiquidatorUtility(address _liquidator, bool _bool) external;
+    function setLiquidator(address liquidator, bool set) external;
 
-    function setLiquidatePrivateMode(bool _bool) external;
+    function setLiquidatorUtility(address liquidator, bool set) external;
 
-    function increasePosition(address _indexToken, uint _collateralDelta, uint _sizeDelta, bool _long) external;
+    function setLiquidatePrivateMode(bool set) external;
 
-    function addCollateral(address _indexToken, uint _collateralDelta, bool _long) external;
+    function increasePosition(address indexToken, uint collateralDelta, uint sizeDelta, bool long) external;
 
-    function withdrawCollateral(address _indexToken, uint _collateralDelta, bool _long) external;
+    function addCollateral(address indexToken, uint collateralDelta, bool long) external;
 
-    function serviceWithdrawCollateral(address _user, address _indexToken, bool _long) external;
+    function withdrawCollateral(address indexToken, uint collateralDelta, bool long) external;
 
-    function decreasePosition(address _indexToken, uint _collateralDelta, uint _sizeDelta, bool _long) external;
+    function serviceWithdrawCollateral(address user, address indexToken, bool long) external;
 
-    function liquidatePosition(address _user, address _indexToken, bool _long, address _feeReceiver) external;
+    function decreasePosition(address indexToken, uint collateralDelta, uint sizeDelta, bool long) external;
+
+    function liquidatePosition(address user, address indexToken, bool long, address feeReceiver) external;
 
 }

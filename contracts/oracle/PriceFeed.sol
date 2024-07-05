@@ -4,10 +4,11 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Pair.sol";
 
-import "./interfaces/IPriceAggregator.sol";
-import "./interfaces/IFastPriceFeed.sol";
 import "../libraries/Governable.sol";
 import "../libraries/Math.sol";
+
+import "./interfaces/IPriceAggregator.sol";
+import "./interfaces/IFastPriceFeed.sol";
 
 contract PriceFeed is Governable, ReentrancyGuard {
     using Math for uint;
@@ -36,8 +37,8 @@ contract PriceFeed is Governable, ReentrancyGuard {
         uint poolDecimals;
     }
 
-    modifier whitelisted(address _indexToken, bool _include) {
-        require(whitelistedToken[_indexToken] == _include, "PriceFeed: invalid whitelisted");
+    modifier whitelisted(address indexToken, bool include) {
+        require(whitelistedToken[indexToken] == include, "PriceFeed: invalid whitelisted");
         _;
     }
 
@@ -59,100 +60,100 @@ contract PriceFeed is Governable, ReentrancyGuard {
     }
 
     function setTokenConfig(
-        address _indexToken,
-        address _priceFeed,
-        uint _priceDecimals,
-        address _ammPool,
-        uint _poolDecimals
-    ) external onlyHandler(controller) whitelisted(_indexToken, false) { 
-        validatePoolAddress(_indexToken, _ammPool);
-        configs[_indexToken] = Config({
-            priceFeed: _priceFeed,
-            priceDecimals: _priceDecimals,
-            ammPool: _ammPool,
-            poolDecimals: _poolDecimals
+        address indexToken,
+        address priceFeed,
+        uint priceDecimals,
+        address ammPool,
+        uint poolDecimals
+    ) external onlyHandler(controller) whitelisted(indexToken, false) { 
+        validatePoolAddress(indexToken, ammPool);
+        configs[indexToken] = Config({
+            priceFeed: priceFeed,
+            priceDecimals: priceDecimals,
+            ammPool: ammPool,
+            poolDecimals: poolDecimals
         });
-        whitelistedToken[_indexToken] = true;
+        whitelistedToken[indexToken] = true;
     }
 
     function setPriceFeedAggregator(
-        address _indexToken, 
-        address _priceFeed, 
-        uint _priceDecimals
-    ) external onlyHandler(controller) whitelisted(_indexToken, true) {
-        Config storage config = configs[_indexToken]; 
+        address indexToken, 
+        address priceFeed, 
+        uint priceDecimals
+    ) external onlyHandler(controller) whitelisted(indexToken, true) {
+        Config storage config = configs[indexToken]; 
 
         require(config.priceFeed == address(0), "PriceFeed: already set");
-        config.priceFeed = _priceFeed;
-        config.priceDecimals = _priceDecimals;
+        config.priceFeed = priceFeed;
+        config.priceDecimals = priceDecimals;
     }
 
     function setAmmPool(
-        address _indexToken, 
-        address _ammPool,
-        uint _poolDecimals
-    ) external onlyHandler(controller) whitelisted(_indexToken, true) {
-        Config storage config = configs[_indexToken]; 
+        address indexToken, 
+        address ammPool,
+        uint poolDecimals
+    ) external onlyHandler(controller) whitelisted(indexToken, true) {
+        Config storage config = configs[indexToken]; 
 
-        validatePoolAddress(_indexToken, _ammPool);
+        validatePoolAddress(indexToken, ammPool);
 
-        config.ammPool = _ammPool;
-        config.poolDecimals = _poolDecimals;
+        config.ammPool = ammPool;
+        config.poolDecimals = poolDecimals;
     }
 
-    function deleteTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, true) {
-        whitelistedToken[_indexToken] = false;
-        delete configs[_indexToken];
+    function deleteTokenConfig(address indexToken) external onlyHandler(controller) whitelisted(indexToken, true) {
+        whitelistedToken[indexToken] = false;
+        delete configs[indexToken];
     }
 
-    function denyAmmPoolPrice(address _indexToken) external onlyHandler(fastPriceFeed) whitelisted(_indexToken, true) {
-        Config storage config = configs[_indexToken]; 
+    function denyAmmPoolPrice(address indexToken) external onlyHandler(fastPriceFeed) whitelisted(indexToken, true) {
+        Config storage config = configs[indexToken]; 
 
         config.ammPool = address(0);
         config.poolDecimals = 0;
     }
 
-    function setIsFastPriceEnabled(bool _isFastPriceEnabled) external onlyHandlers() {
-        isFastPriceEnabled = _isFastPriceEnabled;
+    function setIsFastPriceEnabled(bool enableFastPrice) external onlyHandlers() {
+        isFastPriceEnabled = enableFastPrice;
     }
 
-    function setIsAmmPriceEnabled(bool _isAmmPriceEnabled) external onlyHandler(dao) {
-        isAmmPriceEnabled = _isAmmPriceEnabled;
+    function setIsAmmPriceEnabled(bool enableAmmPrice) external onlyHandler(dao) {
+        isAmmPriceEnabled = enableAmmPrice;
     }
 
-    function setFavorPrimaryPrice(bool _favorPrimaryPrice) external onlyHandlers() {
-        favorPrimaryPrice = _favorPrimaryPrice;
+    function setFavorPrimaryPrice(bool enableFavorPrimaryPrice) external onlyHandlers() {
+        favorPrimaryPrice = enableFavorPrimaryPrice;
     }
 
-    function setPriceSampleSpace(uint _priceSampleSpace) external onlyHandlers() {
-        require(_priceSampleSpace > 0, "PriceFeed: invalid priceSampleSpace");
-        priceSampleSpace = _priceSampleSpace;
+    function setPriceSampleSpace(uint newPriceSampleSpace) external onlyHandlers() {
+        require(newPriceSampleSpace > 0, "PriceFeed: invalid priceSampleSpace");
+        priceSampleSpace = newPriceSampleSpace;
     }
 
-    function setAmmPriceDuration(uint _ammPriceDuration) external onlyHandlers() {
-        require(MAX_AMM_PRICE_DURATION >= _ammPriceDuration, "PriceFeed: invalid ammPriceDuration");
-        ammPriceDuration = _ammPriceDuration;
+    function setAmmPriceDuration(uint newAmmPriceDuration) external onlyHandlers() {
+        require(MAX_AMM_PRICE_DURATION >= newAmmPriceDuration, "PriceFeed: invalid ammPriceDuration");
+        ammPriceDuration = newAmmPriceDuration;
     }
 
-    function getPrice(address _indexToken) external view returns(uint price) {
-        price = getPrimaryPrice(_indexToken);
+    function getPrice(address indexToken) external view returns(uint price) {
+        price = getPrimaryPrice(indexToken);
 
         if(favorPrimaryPrice && price > 0){
             return price;
         } else {
-            if(isAmmPriceEnabled && price == 0) price = getAmmPrice(_indexToken);
-            if(isFastPriceEnabled || price == 0) price = getFastPrice(_indexToken, price);
+            if(isAmmPriceEnabled && price == 0) price = getAmmPrice(indexToken);
+            if(isFastPriceEnabled || price == 0) price = getFastPrice(indexToken, price);
         }
         validatePrice(int(price));
     }
 
-    function getConfig(address _indexToken) external view returns(address, uint, address, uint) {
-        Config memory config = configs[_indexToken]; 
+    function getConfig(address indexToken) external view returns(address, uint, address, uint) {
+        Config memory config = configs[indexToken]; 
         return (config.priceFeed, config.priceDecimals, config.ammPool, config.poolDecimals);
     }
 
-    function getLatestPrimaryPrice(address _indexToken) external view returns(uint) {
-        Config memory config = configs[_indexToken];
+    function getLatestPrimaryPrice(address indexToken) external view returns(uint) {
+        Config memory config = configs[indexToken];
         require(config.priceFeed != address(0), "PriceFeed: invalid price feed");
 
         int price = IPriceAggregator(config.priceFeed).latestAnswer();
@@ -161,8 +162,8 @@ contract PriceFeed is Governable, ReentrancyGuard {
         return uint(price);
     }
 
-    function getPrimaryPrice(address _indexToken) public view returns(uint) {
-        Config memory config = configs[_indexToken];
+    function getPrimaryPrice(address indexToken) public view returns(uint) {
+        Config memory config = configs[indexToken];
         if(config.priceFeed == address(0)) return 0;
 
         IPriceAggregator priceFeed = IPriceAggregator(config.priceFeed);
@@ -194,13 +195,13 @@ contract PriceFeed is Governable, ReentrancyGuard {
         return _price.mulDiv(ACCURACY, (10 ** config.priceDecimals));
     }
 
-    function getFastPrice(address _indexToken, uint _referencePrice) public view returns(uint) {
-        if(fastPriceFeed == address(0)) return _referencePrice;
-        return IFastPriceFeed(fastPriceFeed).getPrice(_indexToken, _referencePrice);
+    function getFastPrice(address indexToken, uint referencePrice) public view returns(uint) {
+        if(fastPriceFeed == address(0)) return referencePrice;
+        return IFastPriceFeed(fastPriceFeed).getPrice(indexToken, referencePrice);
     }
 
-    function getAmmPrice(address _indexToken) public view returns(uint price) {
-        Config memory config = configs[_indexToken]; 
+    function getAmmPrice(address indexToken) public view returns(uint price) {
+        Config memory config = configs[indexToken]; 
         address _pool = config.ammPool;
         if(_pool == address(0)) return 0;
 
@@ -209,23 +210,23 @@ contract PriceFeed is Governable, ReentrancyGuard {
         if(block.timestamp >= _blockTimestampLast + ammPriceDuration) return 0;
         if(_reserve0 * _reserve1 == 0) return 0;
 
-        price = _indexToken == IUniswapV2Pair(_pool).token0() ? 
+        price = indexToken == IUniswapV2Pair(_pool).token0() ? 
         _reserve0.mulDiv(Math.ACCURACY, _reserve1) : 
         _reserve1.mulDiv(Math.ACCURACY, _reserve0);
 
         return price.mulDiv(ACCURACY, (10 ** config.poolDecimals));
     }
 
-    function validatePoolAddress(address _indexToken, address _pool) internal view {
-        if(_pool != address(0))
+    function validatePoolAddress(address indexToken, address pool) internal view {
+        if(pool != address(0))
         require(
-            _indexToken == IUniswapV2Pair(_pool).token0() || 
-            _indexToken == IUniswapV2Pair(_pool).token1(), 
+            indexToken == IUniswapV2Pair(pool).token0() || 
+            indexToken == IUniswapV2Pair(pool).token1(), 
             "PriceFeed: invalid pool"
         );
     }
 
-    function validatePrice(int _price) internal pure {
-        require(_price > 0, "PriceFeed: invalid price");
+    function validatePrice(int price) internal pure {
+        require(price > 0, "PriceFeed: invalid price");
     }
 }

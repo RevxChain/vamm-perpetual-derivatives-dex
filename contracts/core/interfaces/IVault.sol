@@ -36,24 +36,24 @@ interface IVault {
     function shouldValidatePoolShares() external view returns(bool);
     function extraUsageLiquidityEnabled() external view returns(bool);
     
-    function whitelistedToken(address _indexToken) external view returns(bool);
-    function errors(uint _errorCode) external view returns(string memory);
-    function calculatePositionKey(address _user, address _indexToken, bool _long) external pure returns(bytes32);
+    function whitelistedToken(address indexToken) external view returns(bool);
+    function errors(uint errorCode) external view returns(string memory);
+    function calculatePositionKey(address user, address indexToken, bool long) external pure returns(bytes32);
     function preUpdateTotalBorrows() external view returns(uint);
-    function preCalculateUserDebt(bytes32 _key) external view returns(uint);
-    function preCalculateUserBorrowDebt(bytes32 _key) external view returns(uint);
+    function preCalculateUserDebt(bytes32 key) external view returns(uint);
+    function preCalculateUserBorrowDebt(bytes32 key) external view returns(uint);
     function availableLiquidity() external view returns(uint);
     function calculateActualBorrowRate() external view returns(uint);
     function utilizationRate() external view returns(uint);
-    function preUpdateTotalFunding(address _indexToken) external view returns(uint, uint);
-    function calculateOperatingFee(address _indexToken, bool _long, bool _increase) external view returns(uint);
-    function validateLiquidatable(address _user, address _indexToken, bool _long, bool _bool) external view;
-    function calculateFlashLoanFee(uint _amount, address _user) external view returns(uint fee);
+    function preUpdateTotalFunding(address indexToken) external view returns(uint, uint);
+    function calculateOperatingFee(address indexToken, bool long, bool increase) external view returns(uint);
+    function validateLiquidatable(address user, address indexToken, bool long, bool condition) external view;
+    function calculateFlashLoanFee(uint amount, address user) external view returns(uint fee);
 
     function preCalculateUserFundingFee(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) external view returns(
         uint delta, 
         bool hasProfit, 
@@ -62,28 +62,28 @@ interface IVault {
     );
 
     function validateLiquidate(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) external view returns(uint liquidatePrice, bool liquidatable);
 
     function preCalculatePositionDelta( 
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) external view returns(bool hasProfit, uint delta);
 
     function calculateOperationFeeAmount( 
-        address _indexToken, 
-        uint _sizeDelta, 
-        bool _long, 
-        bool _increase
+        address indexToken, 
+        uint sizeDelta, 
+        bool long, 
+        bool increase
     ) external view returns(uint);
 
     function getPosition(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) external view returns(
         uint collateral, 
         uint size, 
@@ -93,90 +93,86 @@ interface IVault {
         uint delta
     );
 
-    function setBaseMaxLeverage(uint _baseMaxLeverage) external;
-    function setLiquidationFee(uint _liquidationFee) external;
-    function setRemainingLiquidationFee(uint _remainingLiquidationFee) external;
-    function setMinChangeTime(uint _minChangeTime) external;
-    function setPoolSharesValidation(bool _shouldValidatePoolShares) external;
-    function setError(uint _errorCode, string calldata _error) external;
-    function setBaseBorrowRatePerYear(uint _baseBorrowRatePerYear) external;
-    function setExtraBorrowRatePerYear(uint _extraBorrowRatePerYear) external;
-    function setUtilizationRateKink(uint _utilizationRateKink) external;
-    function setFundingPriceMultiplier(uint _fundingPriceMultiplier) external;
-    function setTokenConfig(address _indexToken) external;
-    function deleteTokenConfig(address _indexToken) external;
-    function setBaseOperatingFee(uint _baseOperatingFee) external;
-    function setMaxOperatingFeePriceDeviation(uint _maxOperatingFeePriceDeviation) external;
-    function setOperatingFeePriceMultiplier(uint _operatingFeePriceMultiplier) external;
-    function setMinAmountToLoan(uint _minAmountToLoan) external;
-    function setBaseLoanFee(uint _baseFee) external;
-    function setFlashLoanEnabled(bool _enabled) external;
-    function setExtraUsageLiquidityEnabled(bool _extraUsageLiquidityEnabled) external;
+    function setBaseMaxLeverage(uint newBaseMaxLeverage) external;
+    function setLiquidationFee(uint newLiquidationFee) external;
+    function setRemainingLiquidationFee(uint newRemainingLiquidationFee) external;
+    function setMinChangeTime(uint newMinChangeTime) external;
+    function setPoolSharesValidation(bool enableShouldValidatePoolShares) external;
+    function setError(uint errorCode, string calldata errorMsg) external;
+    function setBaseBorrowRatePerYear(uint newBaseBorrowRatePerYear) external;
+    function setExtraBorrowRatePerYear(uint newExtraBorrowRatePerYear) external;
+    function setUtilizationRateKink(uint newUtilizationRateKink) external;
+    function setFundingPriceMultiplier(uint newFundingPriceMultiplier) external;
+    function setTokenConfig(address indexToken) external;
+    function deleteTokenConfig(address indexToken) external;
+    function setBaseOperatingFee(uint newBaseOperatingFee) external;
+    function setMaxOperatingFeePriceDeviation(uint newMaxOperatingFeePriceDeviation) external;
+    function setOperatingFeePriceMultiplier(uint newOperatingFeePriceMultiplier) external;
+    function setMinAmountToLoan(uint newMinAmountToLoan) external;
+    function setBaseLoanFee(uint newBaseLoanFee) external;
+    function setFlashLoanEnabled(bool enable) external;
+    function setExtraUsageLiquidityEnabled(bool enableExtraUsageLiquidity) external;
     function withdrawProtocolFees() external;
     function withdrawFees() external;
 
-    function flashLoan(uint _amount, bytes calldata _data) external returns(uint fee, uint income);
+    function flashLoan(uint amount, bytes calldata data) external returns(uint fee, uint income);
 
     function updateTotalBorrows() external returns(uint);
 
-    function updateTotalFunding(address _indexToken) external returns(uint, uint);
+    function updateTotalFunding(address indexToken) external returns(uint, uint);
 
-    function increasePool(uint _amount) external;
+    function increasePool(uint amount) external;
 
-    function decreasePool(
-        address _user, 
-        uint _amount, 
-        uint _underlyingAmount
-    ) external;
+    function decreasePool(address user, uint amount, uint underlyingAmount) external;
 
-    function directIncreasePool(uint _underlyingAmount) external;
+    function directIncreasePool(uint underlyingAmount) external;
 
     function manualUseLiquidity() external;
 
     function increasePosition(
-        address _user, 
-        address _indexToken, 
-        uint _collateralDelta, 
-        uint _sizeDelta, 
-        bool _long, 
-        uint _markPrice 
+        address user, 
+        address indexToken, 
+        uint collateralDelta, 
+        uint sizeDelta, 
+        bool long, 
+        uint markPrice 
     ) external;
 
     function addCollateral(
-        address _user, 
-        address _indexToken, 
-        uint _collateralDelta, 
-        bool _long
+        address user, 
+        address indexToken, 
+        uint collateralDelta, 
+        bool long
     ) external;
 
     function decreasePosition(
-        address _user, 
-        address _indexToken, 
-        uint _collateralDelta,  
-        uint _sizeDelta, 
-        bool _long,
-        uint _markPrice
+        address user, 
+        address indexToken, 
+        uint collateralDelta,  
+        uint sizeDelta, 
+        bool long,
+        uint markPrice
     ) external;
 
     function withdrawCollateral(
-        address _user, 
-        address _indexToken, 
-        uint _collateralDelta, 
-        bool _long
+        address user, 
+        address indexToken, 
+        uint collateralDelta, 
+        bool long
     ) external;
 
     function serviceWithdrawCollateral(
-        address _user, 
-        address _indexToken, 
-        bool _long
+        address user, 
+        address indexToken, 
+        bool long
     ) external;
 
     function liquidatePosition(
-        address _user,  
-        address _indexToken,
-        uint _sizeDelta,
-        bool _long, 
-        address _feeReceiver
+        address user,  
+        address indexToken,
+        uint sizeDelta,
+        bool long, 
+        address feeReceiver
     ) external;
 
 }

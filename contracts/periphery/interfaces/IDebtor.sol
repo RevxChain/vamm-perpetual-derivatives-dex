@@ -3,6 +3,6 @@ pragma solidity 0.8.19;
 
 interface IDebtor {
 
-    function executeFlashLoan(uint _amount, uint _fee, bytes calldata _data) external;
+    function executeFlashLoan(uint amount, uint fee, bytes calldata data) external;
     
 }

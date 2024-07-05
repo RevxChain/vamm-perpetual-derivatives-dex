@@ -2,6 +2,7 @@
 pragma solidity 0.8.19;
 
 import "../libraries/Governable.sol";
+
 import "./interfaces/IPriceFeed.sol";
 
 contract FastPriceFeed is Governable {
@@ -58,13 +59,13 @@ contract FastPriceFeed is Governable {
         mapping(address => bool) blocked;
     }
 
-    modifier whitelisted(address _indexToken, bool _include) {
-        require(whitelistedToken[_indexToken] == _include, "FastPriceFeed: invalid whitelisted");
+    modifier whitelisted(address indexToken, bool include) {
+        require(whitelistedToken[indexToken] == include, "FastPriceFeed: invalid whitelisted");
         _;
     }
 
-    modifier validateToken(address _indexToken) {
-        require(whitelistedToken[_indexToken] || _indexToken == address(0), "FastPriceFeed: invalid token");
+    modifier validateToken(address indexToken) {
+        require(whitelistedToken[indexToken] || indexToken == address(0), "FastPriceFeed: invalid token");
         _;
     }
 
@@ -95,37 +96,37 @@ contract FastPriceFeed is Governable {
         priceDataInterval = 30 minutes;
     }
 
-    function setWatcher(address _watcher) external onlyHandlers() {
-        require(!watchers[_watcher], "FastPriceFeed: watcher already");
-        watchers[_watcher] = true;
+    function setWatcher(address watcher) external onlyHandlers() {
+        require(!watchers[watcher], "FastPriceFeed: watcher already");
+        watchers[watcher] = true;
         watchersCount += 1;
     }
 
-    function deleteWatcher(address _watcher) external onlyHandlers() {
-        require(watchers[_watcher], "FastPriceFeed: is not watcher");
-        watchers[_watcher] = false;
+    function deleteWatcher(address watcher) external onlyHandlers() {
+        require(watchers[watcher], "FastPriceFeed: is not watcher");
+        watchers[watcher] = false;
         watchersCount -= 1;
     }
 
-    function setProvider(address _provider) external onlyHandler(dao) {
-        Provider storage provider = providers[_provider]; 
+    function setProvider(address providerAddress) external onlyHandler(dao) {
+        Provider storage provider = providers[providerAddress]; 
         require(!provider.updater, "FastPriceFeed: provider is updater");
         require(!provider.banned, "FastPriceFeed: provider banned");
         provider.updater = true;
     }
 
-    function deleteProvider(address _provider) external onlyHandlers() {
-        Provider storage provider = providers[_provider]; 
+    function deleteProvider(address providerAddress) external onlyHandlers() {
+        Provider storage provider = providers[providerAddress]; 
         require(provider.updater, "FastPriceFeed: provider is not updater");
         provider.updater = false;
     }
 
-    function discardDenials(address _indexToken) external onlyHandler(dao) validateToken(_indexToken) {
-        _indexToken == address(0) ? globalDenials = 0 : priceData[_indexToken].denials = 0;
+    function discardDenials(address indexToken) external onlyHandler(dao) validateToken(indexToken) {
+        indexToken == address(0) ? globalDenials = 0 : priceData[indexToken].denials = 0;
     }
 
-    function blockProvider(address _provider) external onlyWatcher() {
-        Provider storage provider = providers[_provider]; 
+    function blockProvider(address providerAddress) external onlyWatcher() {
+        Provider storage provider = providers[providerAddress]; 
         require(!provider.blocked[msg.sender], "FastPriceFeed: blocked already");
         require(provider.updater, "FastPriceFeed: provider is not updater");
         require(!provider.banned, "FastPriceFeed: banned already");
@@ -138,185 +139,185 @@ contract FastPriceFeed is Governable {
         }
     }
 
-    function denyPrice(address _indexToken) external onlyWatcher() validateToken(_indexToken) {
-        require(!priceDenied[_indexToken][msg.sender], "FastPriceFeed: denied already");
-        priceDenied[_indexToken][msg.sender] = true;
-        _indexToken == address(0) ? globalDenials += 1 : priceData[_indexToken].denials += 1;
+    function denyPrice(address indexToken) external onlyWatcher() validateToken(indexToken) {
+        require(!priceDenied[indexToken][msg.sender], "FastPriceFeed: denied already");
+        priceDenied[indexToken][msg.sender] = true;
+        indexToken == address(0) ? globalDenials += 1 : priceData[indexToken].denials += 1;
     }
 
-    function cancelDenyPrice(address _indexToken) external onlyWatcher() validateToken(_indexToken) {
-        require(priceDenied[_indexToken][msg.sender], "FastPriceFeed: cancelled already");
-        priceDenied[_indexToken][msg.sender] = false;
-        _indexToken == address(0) ? globalDenials -= 1 : priceData[_indexToken].denials -= 1;
+    function cancelDenyPrice(address indexToken) external onlyWatcher() validateToken(indexToken) {
+        require(priceDenied[indexToken][msg.sender], "FastPriceFeed: cancelled already");
+        priceDenied[indexToken][msg.sender] = false;
+        indexToken == address(0) ? globalDenials -= 1 : priceData[indexToken].denials -= 1;
     }
 
-    function denyAmmPoolPrice(address _indexToken) external onlyProvider() whitelisted(_indexToken, true) {
-        IPriceFeed(priceFeed).denyAmmPoolPrice(_indexToken);
+    function denyAmmPoolPrice(address indexToken) external onlyProvider() whitelisted(indexToken, true) {
+        IPriceFeed(priceFeed).denyAmmPoolPrice(indexToken);
     }
 
-    function setMaxTimeDeviation(uint _maxTimeDeviation) external onlyHandlers() {
-        maxTimeDeviation = _maxTimeDeviation;
+    function setMaxTimeDeviation(uint newMaxTimeDeviation) external onlyHandlers() {
+        maxTimeDeviation = newMaxTimeDeviation;
     }
 
-    function setPriceDuration(uint _priceDuration) external onlyHandlers() {
-        require(_priceDuration <= MAX_PRICE_DURATION, "FastPriceFeed: invalid priceDuration");
-        priceDuration = _priceDuration;
+    function setPriceDuration(uint newPriceDuration) external onlyHandlers() {
+        require(newPriceDuration <= MAX_PRICE_DURATION, "FastPriceFeed: invalid priceDuration");
+        priceDuration = newPriceDuration;
     }
 
-    function setMinBlockInterval(uint _minBlockInterval) external onlyHandlers() {
-        minBlockInterval = _minBlockInterval;
+    function setMinBlockInterval(uint newMinBlockInterval) external onlyHandlers() {
+        minBlockInterval = newMinBlockInterval;
     }
 
-    function setLastUpdatedAt(uint _lastUpdatedAt) external onlyHandler(dao) {
-        lastUpdatedAt = _lastUpdatedAt;
+    function setLastUpdatedAt(uint newLastUpdatedAt) external onlyHandler(dao) {
+        lastUpdatedAt = newLastUpdatedAt;
     }
     
-    function setLastUpdatedBlock(uint _lastUpdatedBlock) external onlyHandler(dao) {
-        lastUpdatedBlock = _lastUpdatedBlock;
+    function setLastUpdatedBlock(uint newLastUpdatedBlock) external onlyHandler(dao) {
+        lastUpdatedBlock = newLastUpdatedBlock;
     } 
 
-    function setPriceDataInterval(uint _priceDataInterval) external onlyHandler(dao) {
-        require(_priceDataInterval <= MAX_PRICE_DATA_INTERVAL, "FastPriceFeed: invalid priceDataInterval");
-        priceDataInterval = _priceDataInterval;
+    function setPriceDataInterval(uint newPriceDataInterval) external onlyHandler(dao) {
+        require(newPriceDataInterval <= MAX_PRICE_DATA_INTERVAL, "FastPriceFeed: invalid priceDataInterval");
+        priceDataInterval = newPriceDataInterval;
     }
 
     function setMaxDelta(
-        address _indexToken, 
-        uint _maxDelta
-    ) external onlyHandler(dao) whitelisted(_indexToken, true) {
-        PriceData storage data = priceData[_indexToken]; 
-        validateDelta(_maxDelta, data.delta, 0, 0);
-        data.maxDelta = _maxDelta;
+        address indexToken, 
+        uint maxDelta
+    ) external onlyHandler(dao) whitelisted(indexToken, true) {
+        PriceData storage data = priceData[indexToken]; 
+        validateDelta(maxDelta, data.delta, 0, 0);
+        data.maxDelta = maxDelta;
     }
 
     function setMaxCumulativeDelta(
-        address _indexToken, 
-        uint _maxCumulativeDelta
-    ) external onlyHandler(dao) whitelisted(_indexToken, true) {
-        PriceData storage data = priceData[_indexToken]; 
-        validateDelta(0, 0, _maxCumulativeDelta, data.cumulativeDelta);
-        data.cumulativeDelta = _maxCumulativeDelta;
+        address indexToken, 
+        uint maxCumulativeDelta
+    ) external onlyHandler(dao) whitelisted(indexToken, true) {
+        PriceData storage data = priceData[indexToken]; 
+        validateDelta(0, 0, maxCumulativeDelta, data.cumulativeDelta);
+        data.cumulativeDelta = maxCumulativeDelta;
     }
 
     function setTokenConfig(
-        address _indexToken,
-        uint _price,
-        uint _refPrice,
-        uint _maxDelta,
-        uint _maxCumulativeDelta
-    ) external onlyHandler(controller) whitelisted(_indexToken, false) { 
-        whitelistedToken[_indexToken] = true;
-        require(_price > 0 && _refPrice > 0, "FastPriceFeed: invalid price");
-        uint _delta = calculateDelta(_price, _refPrice);
+        address indexToken,
+        uint price,
+        uint refPrice,
+        uint maxDelta,
+        uint maxCumulativeDelta
+    ) external onlyHandler(controller) whitelisted(indexToken, false) { 
+        whitelistedToken[indexToken] = true;
+        require(price > 0 && refPrice > 0, "FastPriceFeed: invalid price");
+        uint _delta = calculateDelta(price, refPrice);
 
-        validateDelta(_maxDelta, _delta, _maxCumulativeDelta, _delta);
+        validateDelta(maxDelta, _delta, maxCumulativeDelta, _delta);
         whitelistedTokensCount += 1; 
 
-        priceData[_indexToken] = PriceData({
-            price: _price,
-            prevPrice: _price,
-            refPrice: _refPrice,
-            prevRefPrice: _refPrice,
+        priceData[indexToken] = PriceData({
+            price: price,
+            prevPrice: price,
+            refPrice: refPrice,
+            prevRefPrice: refPrice,
             delta: _delta,
-            maxDelta: _maxDelta,
+            maxDelta: maxDelta,
             cumulativeDelta: _delta,
-            maxCumulativeDelta: _maxCumulativeDelta,
+            maxCumulativeDelta: maxCumulativeDelta,
             lastUpdate: block.timestamp,
             denials: 0
         });
     }
 
-    function deleteTokenConfig(address _indexToken) external onlyHandler(controller) whitelisted(_indexToken, true) {
-        whitelistedToken[_indexToken] = false;
+    function deleteTokenConfig(address indexToken) external onlyHandler(controller) whitelisted(indexToken, true) {
+        whitelistedToken[indexToken] = false;
         whitelistedTokensCount -= 1;
-        delete priceData[_indexToken];
+        delete priceData[indexToken];
     }
 
     function setPrices(
-        address[] memory _indexTokens, 
-        uint[] memory _prices, 
-        uint _timestamp
+        address[] memory indexTokens, 
+        uint[] memory prices, 
+        uint timestamp
     ) external onlyProvider() {
-        require(_indexTokens.length == whitelistedTokensCount, "FastPriceFeed: invalid tokens array length");
-        bool shouldUpdate = shouldUpdatePrices(_timestamp);
+        require(indexTokens.length == whitelistedTokensCount, "FastPriceFeed: invalid tokens array length");
+        bool shouldUpdate = shouldUpdatePrices(timestamp);
 
-        if(shouldUpdate) for(uint i = 0; i < _indexTokens.length; i++) setPrice(_indexTokens[i], _prices[i]);
+        if(shouldUpdate) for(uint i = 0; i < indexTokens.length; i++) setPrice(indexTokens[i], prices[i]);
     }
 
-    function getPrice(address _indexToken, uint _refPrice) external view returns(uint) {
-        PriceData memory data = priceData[_indexToken]; 
+    function getPrice(address indexToken, uint refPrice) external view returns(uint) {
+        PriceData memory data = priceData[indexToken]; 
         uint _price = data.price;
-        if(!whitelistedToken[_indexToken]) return _refPrice;
-        if(_price == 0) return _refPrice;
-        if(_refPrice > 0){
-            if(block.timestamp > data.lastUpdate + priceDuration) return _refPrice;
-            if(data.cumulativeDelta > data.maxCumulativeDelta) return _refPrice;
-            if(data.delta > data.maxDelta) return _refPrice;
+        if(!whitelistedToken[indexToken]) return refPrice;
+        if(_price == 0) return refPrice;
+        if(refPrice > 0){
+            if(block.timestamp > data.lastUpdate + priceDuration) return refPrice;
+            if(data.cumulativeDelta > data.maxCumulativeDelta) return refPrice;
+            if(data.delta > data.maxDelta) return refPrice;
         }
 
         int _denials = data.denials > globalDenials ? data.denials : globalDenials;
         int _watchers = int(watchersCount);
         if(1 >= _watchers){
-            if(_denials >= _watchers / 2 + 1) return _refPrice;
+            if(_denials >= _watchers / 2 + 1) return refPrice;
         } else {
-            if(_denials >= _watchers / 2) return _refPrice;
+            if(_denials >= _watchers / 2) return refPrice;
         }
         
         return _price;
     }
 
-    function setPrice(address _indexToken, uint _price) internal whitelisted(_indexToken, true) { 
-        PriceData storage data = priceData[_indexToken]; 
-        uint _refPrice = IPriceFeed(priceFeed).getPrimaryPrice(_indexToken);
+    function setPrice(address indexToken, uint price) internal whitelisted(indexToken, true) { 
+        PriceData storage data = priceData[indexToken]; 
+        uint _refPrice = IPriceFeed(priceFeed).getPrimaryPrice(indexToken);
         uint _delta;
 
         if(data.lastUpdate / priceDataInterval != block.timestamp / priceDataInterval) data.cumulativeDelta = 0;
 
         if(_refPrice > 0){
-            _delta = calculateDelta(_price, _refPrice);
+            _delta = calculateDelta(price, _refPrice);
             data.prevRefPrice = data.refPrice;
             data.refPrice = _refPrice;
         } else {
-            _delta = calculateDelta(_price, data.price);
+            _delta = calculateDelta(price, data.price);
         }
 
         data.delta = _delta;
         data.cumulativeDelta += _delta;
         data.prevPrice = data.price;
-        data.price = _price;
+        data.price = price;
         data.lastUpdate = block.timestamp;
     }
 
-    function shouldUpdatePrices(uint _timestamp) internal returns(bool) {
+    function shouldUpdatePrices(uint timestamp) internal returns(bool) {
         if(minBlockInterval > 0) if(minBlockInterval > (block.number - lastUpdatedBlock)) return false;
-        if(block.timestamp - maxTimeDeviation >= _timestamp) return false;
-        if(_timestamp >= block.timestamp + maxTimeDeviation) return false;
-        if(_timestamp < lastUpdatedAt) return false;
+        if(block.timestamp - maxTimeDeviation >= timestamp) return false;
+        if(timestamp >= block.timestamp + maxTimeDeviation) return false;
+        if(timestamp < lastUpdatedAt) return false;
 
-        lastUpdatedAt = _timestamp;
+        lastUpdatedAt = timestamp;
         lastUpdatedBlock = block.number;
 
         return true;
     }
 
-    function validateDelta(uint _delta, uint _refDelta, uint _cumulativeDelta, uint _refCumulativeDelta) internal pure {
+    function validateDelta(uint delta, uint refDelta, uint cumulativeDelta, uint refCumulativeDelta) internal pure {
         require(
-            _delta >= MIN_MAX_DELTA &&
-            MAX_MAX_DELTA >= _delta &&
-            _delta >= _refDelta, 
+            delta >= MIN_MAX_DELTA &&
+            MAX_MAX_DELTA >= delta &&
+            delta >= refDelta, 
             "FastPriceFeed: invalid delta"
         );
 
         require(
-            _cumulativeDelta >= MIN_MAX_CUMULATIVE_DELTA &&
-            MAX_MAX_CUMULATIVE_DELTA >= _cumulativeDelta &&
-            _cumulativeDelta >= _refCumulativeDelta, 
+            cumulativeDelta >= MIN_MAX_CUMULATIVE_DELTA &&
+            MAX_MAX_CUMULATIVE_DELTA >= cumulativeDelta &&
+            cumulativeDelta >= refCumulativeDelta, 
             "FastPriceFeed: invalid cumulativeDelta"
         );
     }
 
-    function calculateDelta(uint _price, uint _refPrice) internal pure returns(uint delta) {
-        delta = _price > _refPrice ? _price - _refPrice : _refPrice - _price;
-        delta = delta * PRECISION / _price;
+    function calculateDelta(uint price, uint refPrice) internal pure returns(uint delta) {
+        delta = price > refPrice ? price - refPrice : refPrice - price;
+        delta = delta * PRECISION / price;
     }
 }

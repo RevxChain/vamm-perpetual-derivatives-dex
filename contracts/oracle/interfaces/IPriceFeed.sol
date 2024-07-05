@@ -11,44 +11,45 @@ interface IPriceFeed {
     function isAmmPriceEnabled() external view returns(bool);
     function favorPrimaryPrice() external view returns(bool);
     function isInitialized() external view returns(bool);
-    function whitelistedToken(address _intexToken) external view returns(bool);
+    
+    function whitelistedToken(address intexToken) external view returns(bool);
 
     function setTokenConfig(
-        address _indexToken,
-        address _priceFeed,
-        uint _priceDecimals, 
-        address _ammPool, 
-        uint _poolDecimals
+        address indexToken,
+        address priceFeed,
+        uint priceDecimals, 
+        address ammPool, 
+        uint poolDecimals
     ) external;
 
-    function setPriceFeedAggregator(address _indexToken, address _priceFeed, uint _priceDecimals) external;
+    function setPriceFeedAggregator(address indexToken, address priceFeed, uint priceDecimals) external;
 
-    function setAmmPool(address _indexToken, address _ammPool, uint _poolDecimals) external;
+    function setAmmPool(address indexToken, address ammPool, uint poolDecimals) external;
 
-    function deleteTokenConfig(address _indexToken) external;
+    function deleteTokenConfig(address indexToken) external;
 
-    function denyAmmPoolPrice(address _indexToken) external;
+    function denyAmmPoolPrice(address indexToken) external;
 
-    function setIsFastPriceEnabled(bool _isFastPriceEnabled) external;
+    function setIsFastPriceEnabled(bool enableFastPrice) external;
 
-    function setIsAmmPriceEnabled(bool _isAmmPriceEnabled) external;
+    function setIsAmmPriceEnabled(bool enableAmmPrice) external;
 
-    function setFavorPrimaryPrice(bool _favorPrimaryPrice) external;
+    function setFavorPrimaryPrice(bool enableFavorPrimaryPrice) external;
 
-    function setPriceSampleSpace(uint _priceSampleSpace) external;
+    function setPriceSampleSpace(uint newPriceSampleSpace) external;
 
-    function setAmmPriceDuration(uint _ammPriceDuration) external;
+    function setAmmPriceDuration(uint newAmmPriceDuration) external;
 
-    function getPrice(address _indexToken) external view returns(uint price);
+    function getPrice(address indexToken) external view returns(uint price);
 
-    function getConfig(address _indexToken) external view returns(address, uint, address, uint);
+    function getConfig(address indexToken) external view returns(address priceFeed, uint priceDecimals, address ammPool, uint poolDecimals);
 
-    function getLatestPrimaryPrice(address _indexToken) external view returns(uint price);
+    function getLatestPrimaryPrice(address indexToken) external view returns(uint price);
 
-    function getPrimaryPrice(address _indexToken) external view returns(uint price);
+    function getPrimaryPrice(address indexToken) external view returns(uint price);
 
-    function getFastPrice(address _indexToken, uint _referencePrice) external view returns(uint price);
+    function getFastPrice(address indexToken, uint referencePrice) external view returns(uint price);
 
-    function getAmmPrice(address _indexToken) external view returns(uint price);
+    function getAmmPrice(address indexToken) external view returns(uint price);
 
 }

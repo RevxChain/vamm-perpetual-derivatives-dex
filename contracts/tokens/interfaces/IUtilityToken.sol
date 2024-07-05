@@ -6,11 +6,11 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 interface IUtilityToken is IERC721 {
 
     function totalTypes() external view returns(uint);
-    function typeId(uint _tokenId) external view returns(uint);
+    function typeId(uint tokenId) external view returns(uint);
 
-    function mint(address[] calldata _user, uint[] calldata _typeId) external;
+    function mint(address[] calldata user, uint[] calldata typeId) external;
 
-    function getUtility(uint _tokenId) external view returns(
+    function getUtility(uint tokenId) external view returns(
         uint maxLeverage, 
         bool operatingFee, 
         bool liquidator, 
@@ -19,22 +19,22 @@ interface IUtilityToken is IERC721 {
     );
 
     function setTypeData( 
-        string calldata _grade, 
-        uint _maxTotalSupply, 
-        uint _maxLeverage, 
-        bool _operatingFee, 
-        bool _liquidator, 
-        uint _votePower,
-        uint _flashLoanFee
+        string calldata grade, 
+        uint maxTotalSupply, 
+        uint maxLeverage, 
+        bool operatingFee, 
+        bool liquidator, 
+        uint votePower,
+        uint flashLoanFee
     ) external;
 
     function updateTypeData(
-        uint _typeId,  
-        uint _maxLeverage, 
-        bool _operatingFee, 
-        bool _liquidator, 
-        uint _votePower,
-        uint _flashLoanFee
+        uint typeId,  
+        uint maxLeverage, 
+        bool operatingFee, 
+        bool liquidator, 
+        uint votePower,
+        uint flashLoanFee
     ) external;
 
 }

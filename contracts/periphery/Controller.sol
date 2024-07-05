@@ -2,7 +2,9 @@
 pragma solidity 0.8.19;
 
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+import "../libraries/Governable.sol";
 
 import "../core/interfaces/IPositionsTracker.sol";
 import "../oracle/interfaces/IFastPriceFeed.sol";
@@ -13,7 +15,6 @@ import "../core/interfaces/IOrderBook.sol";
 import "../core/interfaces/ILPManager.sol";
 import "../core/interfaces/IVault.sol";
 import "../core/interfaces/IVAMM.sol";
-import "../libraries/Governable.sol";
 
 contract Controller is Governable, ReentrancyGuard {
 
@@ -57,83 +58,83 @@ contract Controller is Governable, ReentrancyGuard {
         govToken = _govToken;
     }
 
-    function setErrors(string[] calldata _errors) external onlyHandler(gov) {
-        for(uint i; _errors.length > i; i++) IVault(vault).setError(i, _errors[i]);
+    function setErrors(string[] calldata errors) external onlyHandler(gov) {
+        for(uint i; errors.length > i; i++) IVault(vault).setError(i, errors[i]);
     }
 
     function setTokenConfig(
-        address _indexToken,
-        uint _tokenAmount,
-        uint _stableAmount,
-        uint _maxTotalLongSizes,
-        uint _maxTotalShortSizes,
-        address _priceFeed,
-        uint _priceDecimals,
-        address _ammPool,
-        uint _poolDecimals
+        address indexToken,
+        uint tokenAmount,
+        uint stableAmount,
+        uint maxTotalLongSizes,
+        uint maxTotalShortSizes,
+        address tokenPriceFeed,
+        uint priceDecimals,
+        address ammPool,
+        uint poolDecimals
     ) external onlyHandler(dao) nonReentrant() { 
-        IPriceFeed(priceFeed).setTokenConfig(_indexToken, _priceFeed, _priceDecimals, _ammPool, _poolDecimals);
+        IPriceFeed(priceFeed).setTokenConfig(indexToken, tokenPriceFeed, priceDecimals, ammPool, poolDecimals);
 
-        uint _referencePrice = IPriceFeed(priceFeed).getPrice(_indexToken);
+        uint _referencePrice = IPriceFeed(priceFeed).getPrice(indexToken);
         require(_referencePrice > 0, "Controller: invalid price");
 
-        IVault(vault).setTokenConfig(_indexToken);
-        IVAMM(VAMM).setTokenConfig(_indexToken, _tokenAmount, _stableAmount, _referencePrice);
-        IPositionsTracker(positionsTracker).setTokenConfig(_indexToken, _maxTotalLongSizes, _maxTotalShortSizes);
-        IMarketRouter(marketRouter).setTokenConfig(_indexToken);
-        IOrderBook(orderBook).setTokenConfig(_indexToken); 
+        IVault(vault).setTokenConfig(indexToken);
+        IVAMM(VAMM).setTokenConfig(indexToken, tokenAmount, stableAmount, _referencePrice);
+        IPositionsTracker(positionsTracker).setTokenConfig(indexToken, maxTotalLongSizes, maxTotalShortSizes);
+        IMarketRouter(marketRouter).setTokenConfig(indexToken);
+        IOrderBook(orderBook).setTokenConfig(indexToken); 
     }
 
     function setPriceFeedAggregator(
-        address _indexToken, 
-        address _priceFeed, 
-        uint _priceDecimals
+        address indexToken, 
+        address tokenPriceFeed, 
+        uint priceDecimals
     ) external onlyHandlers() nonReentrant() {
-        IPriceFeed(priceFeed).setPriceFeedAggregator(_indexToken, _priceFeed, _priceDecimals);
+        IPriceFeed(priceFeed).setPriceFeedAggregator(indexToken, tokenPriceFeed, priceDecimals);
 
-        uint _referencePrice = IPriceFeed(priceFeed).getPrice(_indexToken);
+        uint _referencePrice = IPriceFeed(priceFeed).getPrice(indexToken);
         require(_referencePrice > 0, "Controller: invalid price");
     }
 
     function setAmmPool(
-        address _indexToken, 
-        address _ammPool, 
-        uint _poolDecimals
+        address indexToken, 
+        address ammPool, 
+        uint poolDecimals
     ) external onlyHandlers() nonReentrant() {
-        IPriceFeed(priceFeed).setAmmPool(_indexToken, _ammPool, _poolDecimals);
+        IPriceFeed(priceFeed).setAmmPool(indexToken, ammPool, poolDecimals);
     }
 
-    function deleteTokenConfig(address _indexToken) external onlyHandler(dao) nonReentrant() {  
-        IVault(vault).deleteTokenConfig(_indexToken); 
-        IVAMM(VAMM).deleteTokenConfig(_indexToken);
-        IPositionsTracker(positionsTracker).deleteTokenConfig(_indexToken);
-        IMarketRouter(marketRouter).deleteTokenConfig(_indexToken);
-        IOrderBook(orderBook).deleteTokenConfig(_indexToken);
-        IPriceFeed(priceFeed).deleteTokenConfig(_indexToken);
-        IFastPriceFeed(fastPriceFeed).deleteTokenConfig(_indexToken);
+    function deleteTokenConfig(address indexToken) external onlyHandler(dao) nonReentrant() {  
+        IVault(vault).deleteTokenConfig(indexToken); 
+        IVAMM(VAMM).deleteTokenConfig(indexToken);
+        IPositionsTracker(positionsTracker).deleteTokenConfig(indexToken);
+        IMarketRouter(marketRouter).deleteTokenConfig(indexToken);
+        IOrderBook(orderBook).deleteTokenConfig(indexToken);
+        IPriceFeed(priceFeed).deleteTokenConfig(indexToken);
+        IFastPriceFeed(fastPriceFeed).deleteTokenConfig(indexToken);
     }
 
     function setOracleTokenConfig(
-        address _indexToken,
-        uint _price,
-        uint _refPrice,
-        uint _maxDelta,
-        uint _maxCumulativeDelta
+        address indexToken,
+        uint price,
+        uint refPrice,
+        uint maxDelta,
+        uint maxCumulativeDelta
     ) external onlyHandler(dao) nonReentrant() { 
         IFastPriceFeed(fastPriceFeed).setTokenConfig(
-            _indexToken,
-            _price,
-            _refPrice,
-            _maxDelta,
-            _maxCumulativeDelta
+            indexToken,
+            price,
+            refPrice,
+            maxDelta,
+            maxCumulativeDelta
         );
     }
 
-    function deleteOracleTokenConfig(address _indexToken) external onlyHandler(dao) nonReentrant() {  
-        IFastPriceFeed(fastPriceFeed).deleteTokenConfig(_indexToken);
+    function deleteOracleTokenConfig(address indexToken) external onlyHandler(dao) nonReentrant() {  
+        IFastPriceFeed(fastPriceFeed).deleteTokenConfig(indexToken);
     }
 
-    function distributeFees(uint _extraRewardAmount) external onlyHandlers() nonReentrant() {
+    function distributeFees(uint extraRewardAmount) external onlyHandlers() nonReentrant() {
         ILPManager(LPManager).withdrawFees();
         IVault(vault).withdrawFees();
         address _stable = ILPManager(LPManager).stable();
@@ -141,8 +142,8 @@ contract Controller is Governable, ReentrancyGuard {
         IERC20(_stable).approve(LPManager, _amount);
         _amount = ILPManager(LPManager).addLiquidity(_amount);
         IERC20(LPManager).approve(LPStaking, _amount);
-        IERC20(govToken).approve(LPStaking, _extraRewardAmount);
-        ILPStaking(LPStaking).addRewards(_amount, _extraRewardAmount);
+        IERC20(govToken).approve(LPStaking, extraRewardAmount);
+        ILPStaking(LPStaking).addRewards(_amount, extraRewardAmount);
     }
 }
 

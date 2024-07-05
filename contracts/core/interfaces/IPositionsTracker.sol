@@ -15,26 +15,26 @@ interface IPositionsTracker {
     function vault() external view returns(address);
     function hasTradersProfit() external view returns(bool);
 
-    function whitelistedToken(address _indexToken) external view returns(bool);
-    function updaters(address _updater) external view returns(bool);
+    function whitelistedToken(address indexToken) external view returns(bool);
+    function updaters(address updater) external view returns(bool);
 
-    function setUpdater(address _updater, bool _bool) external;
+    function setUpdater(address updater, bool set) external;
 
-    function setDeltaDuration(uint _deltaDuration) external;
+    function setDeltaDuration(uint newDeltaDuration) external;
 
-    function setLiquidityDeviation(uint _liquidityDeviation) external;
+    function setLiquidityDeviation(uint newLiquidityDeviation) external;
 
-    function setTokenConfig(address _indexToken, uint _maxTotalLongSizes, uint _maxTotalShortSizes) external;
+    function setTokenConfig(address indexToken, uint maxTotalLongSizes, uint maxTotalShortSizes) external;
 
-    function deleteTokenConfig(address _indexToken) external;
+    function deleteTokenConfig(address indexToken) external;
 
-    function setMaxTotalSizes(address _indexToken, uint _maxTotalLongSizes, uint _maxTotalShortSizes) external;
+    function setMaxTotalSizes(address indexToken, uint maxTotalLongSizes, uint maxTotalShortSizes) external;
 
-    function increaseTotalSizes(address _indexToken, uint _sizeDelta, uint _markPrice, bool _long) external;
+    function increaseTotalSizes(address indexToken, uint sizeDelta, uint markPrice, bool long) external;
 
-    function decreaseTotalSizes(address _indexToken, uint _sizeDelta, uint _markPrice, bool _long) external;
+    function decreaseTotalSizes(address indexToken, uint sizeDelta, uint markPrice, bool long) external;
 
-    function updateTotalPositionsProfit(address[] calldata _indexTokens) external;
+    function updateTotalPositionsProfit(address[] calldata indexTokens) external;
 
     function getPositionsData() external view returns(bool isActual, bool hasTradersProfit, uint totalPositionsDelta);
 
