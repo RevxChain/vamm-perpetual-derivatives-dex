@@ -17,6 +17,27 @@ interface IFastPriceFeed {
     function watchers(address watcher) external view returns(bool);
     function whitelistedToken(address indexToken) external view returns(bool);
     function priceDenied(address indexToken, address watcher) external view returns(bool);
+    function priceData(address indexToken) external view returns(PriceData memory);
+    function providers(address provider) external view returns(Provider memory);
+
+    struct PriceData {
+        uint price;
+        uint prevPrice;
+        uint refPrice;
+        uint prevRefPrice;
+        uint delta;
+        uint maxDelta;
+        uint cumulativeDelta;
+        uint maxCumulativeDelta;
+        uint lastUpdate;
+        int denials;
+    }
+
+    struct Provider {
+        bool updater;
+        bool banned;
+        uint denials;
+    }
 
     function setWatcher(address watcher) external;
 

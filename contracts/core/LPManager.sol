@@ -120,7 +120,7 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         return 9;
     }
     
-    function collectAddFees(uint amount) internal returns(uint) {
+    function collectAddFees(uint amount) internal returns(uint afterFeeAmount) {
         if(msg.sender == controller) return amount;
         (bool _isActual, bool _hasProfit, uint _totalDelta) = IPositionsTracker(positionsTracker).getPositionsData();
         (uint _baseFee, uint _profitFee) = (baseProviderFee, 0);
@@ -137,13 +137,11 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         if(IVault(vault).totalBorrows() > IVault(vault).availableLiquidity() || _feeAmount == 0) return amount;
 
         feeReserves += _feeAmount;
-        uint _afterFeeAmount = amount - _feeAmount;
+        afterFeeAmount = amount - _feeAmount;
         IERC20(stable).safeTransferFrom(msg.sender, address(this), _feeAmount);
-
-        return _afterFeeAmount;
     }
 
-    function collectRemoveFees(uint amount) internal returns(uint) {
+    function collectRemoveFees(uint amount) internal returns(uint afterFeeAmount) {
         (bool _isActual, bool _hasProfit, uint _totalDelta) = IPositionsTracker(positionsTracker).getPositionsData();
         (uint _baseFee, uint _profitFee, uint _removeFee) = (baseProviderFee, baseRemoveFee, 0);
         if(_isActual){
@@ -160,10 +158,8 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         if(_feeAmount == 0) return amount;
 
         feeReserves += _feeAmount;
-        uint _afterFeeAmount = amount - _feeAmount;
+        afterFeeAmount = amount - _feeAmount;
         IVault(vault).decreasePool(address(this), _feeAmount.stableToPrecision(), _feeAmount);
-
-        return _afterFeeAmount;
     }
 
     function validateAmount(uint amount) internal pure {

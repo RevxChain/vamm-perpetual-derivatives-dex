@@ -17,7 +17,7 @@ contract Debtor is IDebtor, Ownable {
     address public immutable stable;
     address public immutable vault;
 
-    bool locked;
+    bool private locked;
 
     constructor(address _vault) {
         vault = _vault;
@@ -35,7 +35,7 @@ contract Debtor is IDebtor, Ownable {
         (locked, sAmount, sBalance, sFee) = (false, 0, 0, 0);
     }
 
-    function executeFlashLoan(uint amount, uint fee, bytes calldata /*data*/) external {
+    function executeFlashLoan(uint amount, uint fee, bytes calldata /* data */) external {
         require(tx.origin == owner(), "Debtor: invalid tx sender");
         require(msg.sender == vault, "Debtor: invalid msg sender");
         require(sAmount == amount, "Debtor: wrong amount");
@@ -62,4 +62,3 @@ contract Debtor is IDebtor, Ownable {
         require(_success, "Debtor: ETH transfer failed");
     }
 }
-

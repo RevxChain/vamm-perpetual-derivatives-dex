@@ -49,6 +49,16 @@ interface IVault {
     function calculateOperatingFee(address indexToken, bool long, bool increase) external view returns(uint);
     function validateLiquidatable(address user, address indexToken, bool long, bool condition) external view;
     function calculateFlashLoanFee(uint amount, address user) external view returns(uint fee);
+    function positions(bytes32 key) external view returns(Position memory);
+
+    struct Position {
+        uint collateral;
+        uint size;
+        uint entryPrice;
+        uint borrowed;  
+        uint entryFunding;
+        uint lastUpdateTime; 
+    }
 
     function preCalculateUserFundingFee(
         address user, 

@@ -19,7 +19,7 @@ contract StakedSupplyToken is ERC20Burnable {
         return 9;
     }
 
-    function _beforeTokenTransfer(address /*from*/, address /*to*/, uint /*amount*/) internal view override {
+    function _beforeTokenTransfer(address /* from */, address /* to */, uint /* amount */) internal view override {
         require(msg.sender == LPStaking, "StakedSupplyToken: forbidden");
     }
 }

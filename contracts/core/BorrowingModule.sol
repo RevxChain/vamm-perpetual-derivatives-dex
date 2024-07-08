@@ -35,7 +35,7 @@ contract BorrowingModule is VaultBase {
     } 
 
     function updateTotalBorrows() public returns(uint) {
-        if(block.timestamp - lastUpdateTotalBorrows > 0){
+        if(block.timestamp > lastUpdateTotalBorrows){
             totalBorrows = preUpdateTotalBorrows();
             lastUpdateTotalBorrows = block.timestamp;
         }
@@ -43,7 +43,7 @@ contract BorrowingModule is VaultBase {
     }
 
     function preUpdateTotalBorrows() public view returns(uint) {
-        if(block.timestamp - lastUpdateTotalBorrows > 0){
+        if(block.timestamp > lastUpdateTotalBorrows){
             return totalBorrows + calculatePoolIncrease(totalBorrows, calculateActualBorrowRate(), lastUpdateTotalBorrows);
         } else {
             return totalBorrows;

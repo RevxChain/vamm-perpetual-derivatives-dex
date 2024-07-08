@@ -12,7 +12,15 @@ interface IPriceFeed {
     function favorPrimaryPrice() external view returns(bool);
     function isInitialized() external view returns(bool);
     
-    function whitelistedToken(address intexToken) external view returns(bool);
+    function whitelistedToken(address indexToken) external view returns(bool);
+    function configs(address indexToken) external view returns(Config memory);
+    
+    struct Config {
+        address priceFeed;
+        uint priceDecimals;
+        address ammPool;
+        uint poolDecimals;
+    }
 
     function setTokenConfig(
         address indexToken,

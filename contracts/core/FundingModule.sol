@@ -33,7 +33,7 @@ contract FundingModule is BorrowingModule {
 
     function updateTotalFunding(address indexToken) public returns(uint, uint) {
         Funding storage funding = fundings[indexToken];
-        if(block.timestamp - funding.lastFundingUpdateTime > 0){
+        if(block.timestamp > funding.lastFundingUpdateTime){
             (funding.totalLongFunding, funding.totalShortFunding) = preUpdateTotalFunding(indexToken);
             funding.lastFundingUpdateTime = block.timestamp;
         }
@@ -44,7 +44,7 @@ contract FundingModule is BorrowingModule {
     function preUpdateTotalFunding(address indexToken) public view returns(uint, uint) {
         Funding memory funding = fundings[indexToken];
         uint _updateTime = funding.lastFundingUpdateTime;
-        if(block.timestamp - _updateTime > 0){
+        if(block.timestamp > _updateTime){
             uint _vammPrice = IVAMM(VAMM).getPrice(indexToken);
             uint _feedPrice = IPriceFeed(priceFeed).getPrice(indexToken);
             uint _fundingFeeRate = (getPriceDelta(_vammPrice, _feedPrice).mulDiv(Math.ACCURACY, _vammPrice)).mulDiv(fundingPriceMultiplier, Math.PRECISION); 

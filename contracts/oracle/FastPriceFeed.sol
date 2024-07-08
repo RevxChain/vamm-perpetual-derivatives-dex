@@ -37,7 +37,7 @@ contract FastPriceFeed is Governable {
     mapping(address => bool) public whitelistedToken;
     mapping(address => mapping(address => bool)) public priceDenied;
     mapping(address => PriceData) public priceData;
-    mapping(address => Provider) providers;
+    mapping(address => Provider) public providers;
 
     struct PriceData {
         uint price;
@@ -290,7 +290,7 @@ contract FastPriceFeed is Governable {
 
     function shouldUpdatePrices(uint timestamp) internal returns(bool) {
         if(minBlockInterval > 0) if(minBlockInterval > (block.number - lastUpdatedBlock)) return false;
-        if(block.timestamp - maxTimeDeviation >= timestamp) return false;
+        if(block.timestamp >= timestamp + maxTimeDeviation) return false;
         if(timestamp >= block.timestamp + maxTimeDeviation) return false;
         if(timestamp < lastUpdatedAt) return false;
 
