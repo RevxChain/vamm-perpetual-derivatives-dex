@@ -217,7 +217,7 @@ contract PositionsTracker is Governable, ReentrancyGuard {
 
     function calculateDelta(uint num, uint refNum) internal pure returns(uint delta, uint pDelta) {
         delta = num > refNum ? num - refNum : refNum - num;
-        if(delta == 0) return (0, 0);
+        if(delta == 0 || num == 0) return (0, 0);
         pDelta = delta.mulDiv(Math.PRECISION, num);
     }
 }

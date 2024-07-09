@@ -40,7 +40,7 @@ module.exports = {
                 settings: {
                     optimizer: {
                         enabled: true,
-                        runs: 99999,
+                        runs: 1,
                     },
                 },
             },
@@ -48,7 +48,7 @@ module.exports = {
     },
 
     gasReporter: {
-        enabled: true,
+        enabled: false,
     },
 
     contractSizer: {

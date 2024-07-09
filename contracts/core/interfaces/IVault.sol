@@ -25,6 +25,7 @@ interface IVault {
     function utilizationRateKink() external view returns(uint);
     function baseBorrowRatePerYear() external view returns(uint);
     function extraBorrowRatePerYear() external view returns(uint);
+    function cappedBorrowRate() external view returns(bool); 
     function fundingPriceMultiplier() external view returns(uint);
     function baseOperatingFee() external view returns(uint);
     function maxOperatingFeePriceDeviation() external view returns(uint);
@@ -44,7 +45,7 @@ interface IVault {
     function preCalculateUserBorrowDebt(bytes32 key) external view returns(uint);
     function availableLiquidity() external view returns(uint);
     function calculateActualBorrowRate() external view returns(uint);
-    function utilizationRate() external view returns(uint);
+    function utilizationRate() external view returns(uint rate);
     function preUpdateTotalFunding(address indexToken) external view returns(uint, uint);
     function calculateOperatingFee(address indexToken, bool long, bool increase) external view returns(uint);
     function validateLiquidatable(address user, address indexToken, bool long, bool condition) external view;
@@ -112,6 +113,7 @@ interface IVault {
     function setBaseBorrowRatePerYear(uint newBaseBorrowRatePerYear) external;
     function setExtraBorrowRatePerYear(uint newExtraBorrowRatePerYear) external;
     function setUtilizationRateKink(uint newUtilizationRateKink) external;
+    function setCappedBorrowRate(bool enableCappedBorrowRate) external;
     function setFundingPriceMultiplier(uint newFundingPriceMultiplier) external;
     function setTokenConfig(address indexToken) external;
     function deleteTokenConfig(address indexToken) external;

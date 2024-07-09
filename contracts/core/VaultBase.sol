@@ -95,6 +95,7 @@ contract VaultBase is Governable {
     }
 
     function calculatePoolIncrease(uint totalPool, uint rate, uint lastUpdate) internal view returns(uint) {
+        if(totalPool == 1) return 0;
         return (totalPool * rate * ((block.timestamp - lastUpdate).mulDiv(Math.ACCURACY, Math.ONE_YEAR))) / Math.DOUBLE_ACC;
     }
 

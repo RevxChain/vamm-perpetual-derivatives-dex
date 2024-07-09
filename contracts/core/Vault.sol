@@ -42,6 +42,7 @@ contract Vault is FlashLoanModule {
         liquidityManager = _liquidityManager;
 
         shouldValidatePoolShares = true;
+        cappedBorrowRate = true;
         lastUpdateTotalBorrows = block.timestamp;
         totalBorrows = Math.INIT_LOCK_AMOUNT;
         borrowPool = Math.INIT_LOCK_AMOUNT;

@@ -105,13 +105,17 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
         validateAmount(sTokenAmount);
 
         underlyingAmount = collectRemoveFees(calculateUnderlying(sTokenAmount));
+        uint _normalizedAmount = underlyingAmount.stableToPrecision();
+
+        require(IVault(vault).poolAmount() >= IVault(vault).preUpdateTotalBorrows() + _normalizedAmount, "LPManager: liquidity used");
 
         _burn(_user, sTokenAmount);
  
-        IVault(vault).decreasePool(_user, underlyingAmount.stableToPrecision(), underlyingAmount);
+        IVault(vault).decreasePool(_user, _normalizedAmount, underlyingAmount);
     }
 
     function calculateUnderlying(uint sTokenAmount) public view returns(uint underlyingAmount) {
+        if(totalSupply() == 0) return 0;
         uint _stableAmount = sTokenAmount.mulDiv(IVault(vault).poolAmount(), totalSupply());
         underlyingAmount = _stableAmount.precisionToStable();
     }

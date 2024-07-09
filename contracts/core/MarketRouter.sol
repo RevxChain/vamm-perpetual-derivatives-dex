@@ -83,11 +83,14 @@ contract MarketRouter is Governable, ReentrancyGuard {
         uint collateralDelta, 
         uint sizeDelta,
         bool long
-    ) external nonReentrant() whitelisted(indexToken, true) {    
-        require(collateralDelta >= MIN_POSITION_WORTH, "MarketRouter: insufficient collateral");
-        address _user = msg.sender;  
+    ) external nonReentrant() whitelisted(indexToken, true) {
+        address _user = msg.sender; 
+        (uint _currentCollateral, , , , ,) = IVault(vault).getPosition(_user, indexToken, long);
+        if(_currentCollateral == 0) require(collateralDelta >= MIN_POSITION_WORTH, "MarketRouter: insufficient collateral");
+
         IVault(vault).validateLiquidatable(_user, indexToken, long, false);
         validateDelta(sizeDelta, collateralDelta);
+
         if(collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, vault, collateralDelta.precisionToStable());
 
         IVAMM(VAMM).updateIndex(

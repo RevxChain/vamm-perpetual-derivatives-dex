@@ -17,6 +17,8 @@ contract BorrowingModule is VaultBase {
     uint public baseBorrowRatePerYear;
     uint public extraBorrowRatePerYear;
 
+    bool public cappedBorrowRate;
+
     function setBaseBorrowRatePerYear(uint newBaseBorrowRatePerYear) external onlyHandler(dao) {
         validate(MAX_BASE_BORROW_RATE_PER_YEAR >= newBaseBorrowRatePerYear, 9);
         validate(extraBorrowRatePerYear >= newBaseBorrowRatePerYear, 10);
@@ -32,6 +34,10 @@ contract BorrowingModule is VaultBase {
     function setUtilizationRateKink(uint newUtilizationRateKink) external onlyHandler(dao) {
         validate(Math.PRECISION >= newUtilizationRateKink, 13);
         utilizationRateKink = newUtilizationRateKink;
+    } 
+
+    function setCappedBorrowRate(bool enableCappedBorrowRate) external onlyHandler(dao) {
+        cappedBorrowRate = enableCappedBorrowRate;
     } 
 
     function updateTotalBorrows() public returns(uint) {
@@ -72,8 +78,10 @@ contract BorrowingModule is VaultBase {
         }
     }
 
-    function utilizationRate() public view returns(uint) {
-        return preUpdateTotalBorrows().mulDiv(Math.PRECISION, poolAmount);
+    function utilizationRate() public view returns(uint rate) {
+        if(poolAmount == 0) return Math.PRECISION;
+        rate = totalBorrows.mulDiv(Math.PRECISION, poolAmount);
+        if(cappedBorrowRate && rate > Math.PRECISION) rate = Math.PRECISION;
     }
 
     function borrowMargin(bytes32 key, uint margin) internal {
