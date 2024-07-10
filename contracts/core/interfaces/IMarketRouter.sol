@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-interface IMarketRouter {
+import "./IPermitData.sol";
+
+interface IMarketRouter is IPermitData {
 
     function vault() external view returns(address);
     function VAMM() external view returns(address);
@@ -25,7 +27,22 @@ interface IMarketRouter {
 
     function increasePosition(address indexToken, uint collateralDelta, uint sizeDelta, bool long) external;
 
+    function increasePositionWithPermit( 
+        address indexToken, 
+        uint collateralDelta, 
+        uint sizeDelta,
+        bool long,
+        PermitData calldata $
+    ) external;
+
     function addCollateral(address indexToken, uint collateralDelta, bool long) external;
+
+    function addCollateralWithPermit( 
+        address indexToken, 
+        uint collateralDelta, 
+        bool long,
+        PermitData calldata $
+    ) external;
 
     function withdrawCollateral(address indexToken, uint collateralDelta, bool long) external;
 

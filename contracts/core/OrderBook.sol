@@ -10,9 +10,11 @@ import "../libraries/Math.sol";
 
 import "./interfaces/IVault.sol";
 import "./interfaces/IVAMM.sol";
+import "./interfaces/IPermitData.sol";
 
-contract OrderBook is Governable, ReentrancyGuard {
+contract OrderBook is IPermitData, Governable, ReentrancyGuard {
     using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20Permit;
     using Math for uint;
 
     uint public constant MIN_EXECUTION_FEE = 15e14;
@@ -127,14 +129,31 @@ contract OrderBook is Governable, ReentrancyGuard {
         bool triggerAboveThreshold,
         uint executionFee
     ) external payable nonReentrant() whitelisted(indexToken, true) {
-        validateExecutionFee(executionFee);
-        validateDelta(sizeDelta, collateralDelta);
+        _createIncreaseOrder(
+            msg.sender,
+            indexToken,
+            collateralDelta,
+            sizeDelta,
+            long,
+            triggerPrice,
+            triggerAboveThreshold,
+            executionFee
+        );
+    }
+
+    function createIncreaseOrderWithPermit(
+        address indexToken,
+        uint collateralDelta,
+        uint sizeDelta,
+        bool long,
+        uint triggerPrice,
+        bool triggerAboveThreshold,
+        uint executionFee,
+        PermitData calldata $
+    ) external payable nonReentrant() whitelisted(indexToken, true) {
         address _user = msg.sender;
-
-        (, uint _positionSize, , , ,) = IVault(vault).getPosition(_user, indexToken, long);
-
-        if(_positionSize == 0) require(collateralDelta >= minOrderWorth, "OrderBook: insufficient collateral");
-        if(collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, address(this), collateralDelta.precisionToStable());
+        require(collateralDelta > 0, "OrderBook: insufficient collateral"); 
+        IERC20Permit(stable).safePermit(_user, address(this), collateralDelta.precisionToStable(), $.deadline, $.v, $.r, $.s);  
 
         _createIncreaseOrder(
             _user,
@@ -158,6 +177,14 @@ contract OrderBook is Governable, ReentrancyGuard {
         bool triggerAboveThreshold,
         uint executionFee
     ) internal {
+        validateExecutionFee(executionFee);
+        validateDelta(sizeDelta, collateralDelta);
+        
+        (, uint _positionSize, , , ,) = IVault(vault).getPosition(user, indexToken, long);
+        if(_positionSize == 0) require(collateralDelta >= minOrderWorth, "OrderBook: insufficient collateral");
+
+        if(collateralDelta > 0) IERC20(stable).safeTransferFrom(user, address(this), collateralDelta.precisionToStable());
+
         uint _orderIndex = increaseOrdersIndex[user];
         IncreaseOrder memory order = IncreaseOrder(
             user,

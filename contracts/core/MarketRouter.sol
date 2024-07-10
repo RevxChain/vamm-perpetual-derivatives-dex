@@ -9,9 +9,11 @@ import "../libraries/Math.sol";
 
 import "./interfaces/IVault.sol";
 import "./interfaces/IVAMM.sol";
+import "./interfaces/IPermitData.sol";
 
-contract MarketRouter is Governable, ReentrancyGuard {
+contract MarketRouter is IPermitData, Governable, ReentrancyGuard {
     using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20Permit;
     using Math for uint;
     
     uint public constant MIN_POSITION_WORTH = 10e18;
@@ -84,25 +86,19 @@ contract MarketRouter is Governable, ReentrancyGuard {
         uint sizeDelta,
         bool long
     ) external nonReentrant() whitelisted(indexToken, true) {
-        address _user = msg.sender; 
-        (uint _currentCollateral, , , , ,) = IVault(vault).getPosition(_user, indexToken, long);
-        if(_currentCollateral == 0) require(collateralDelta >= MIN_POSITION_WORTH, "MarketRouter: insufficient collateral");
+        _increasePosition(msg.sender, indexToken, collateralDelta, sizeDelta, long);
+    }
 
-        IVault(vault).validateLiquidatable(_user, indexToken, long, false);
-        validateDelta(sizeDelta, collateralDelta);
-
-        if(collateralDelta > 0) IERC20(stable).safeTransferFrom(_user, vault, collateralDelta.precisionToStable());
-
-        IVAMM(VAMM).updateIndex(
-            _user,
-            indexToken, 
-            collateralDelta, 
-            sizeDelta, 
-            long,
-            true,
-            false,
-            address(0)
-        );
+    function increasePositionWithPermit( 
+        address indexToken, 
+        uint collateralDelta, 
+        uint sizeDelta,
+        bool long,
+        PermitData calldata $
+    ) external nonReentrant() whitelisted(indexToken, true) { 
+        require(collateralDelta > 0, "MarketRouter: insufficient collateral"); 
+        IERC20Permit(stable).safePermit(msg.sender, address(this), collateralDelta.precisionToStable(), $.deadline, $.v, $.r, $.s);  
+        _increasePosition(msg.sender, indexToken, collateralDelta, sizeDelta, long);
     }
 
     function addCollateral( 
@@ -110,13 +106,17 @@ contract MarketRouter is Governable, ReentrancyGuard {
         uint collateralDelta, 
         bool long
     ) external nonReentrant() whitelisted(indexToken, true) {  
-        address _user = msg.sender;  
-        IVault(vault).validateLiquidatable(_user, indexToken, long, false);  
-        validateDelta(collateralDelta, collateralDelta);  
+        _addCollateral(msg.sender, indexToken, collateralDelta, long);
+    }
 
-        IERC20(stable).safeTransferFrom(_user, vault, collateralDelta.precisionToStable());
-
-        IVault(vault).addCollateral(_user, indexToken, collateralDelta, long);
+    function addCollateralWithPermit( 
+        address indexToken, 
+        uint collateralDelta, 
+        bool long,
+        PermitData calldata $
+    ) external nonReentrant() whitelisted(indexToken, true) {  
+        IERC20Permit(stable).safePermit(msg.sender, address(this), collateralDelta.precisionToStable(), $.deadline, $.v, $.r, $.s);
+        _addCollateral(msg.sender, indexToken, collateralDelta, long);
     }
 
     function withdrawCollateral( 
@@ -126,7 +126,7 @@ contract MarketRouter is Governable, ReentrancyGuard {
     ) external nonReentrant() whitelisted(indexToken, true) { 
         address _user = msg.sender;  
         IVault(vault).validateLiquidatable(_user, indexToken, long, false); 
-        validateDelta(collateralDelta, collateralDelta);
+        validateDelta(0, collateralDelta);
         IVault(vault).withdrawCollateral(_user, indexToken, collateralDelta, long);
     }
 
@@ -180,6 +180,47 @@ contract MarketRouter is Governable, ReentrancyGuard {
             true,
             feeReceiver
         );
+    }
+
+    function _increasePosition( 
+        address user,
+        address indexToken, 
+        uint collateralDelta, 
+        uint sizeDelta,
+        bool long
+    ) internal { 
+        (uint _currentCollateral, , , , ,) = IVault(vault).getPosition(user, indexToken, long);
+        if(_currentCollateral == 0) require(collateralDelta >= MIN_POSITION_WORTH, "MarketRouter: insufficient collateral");
+
+        IVault(vault).validateLiquidatable(user, indexToken, long, false);
+        validateDelta(sizeDelta, collateralDelta);
+
+        if(collateralDelta > 0) IERC20(stable).safeTransferFrom(user, vault, collateralDelta.precisionToStable());
+
+        IVAMM(VAMM).updateIndex(
+            user,
+            indexToken, 
+            collateralDelta, 
+            sizeDelta, 
+            long,
+            true,
+            false,
+            address(0)
+        );
+    }
+
+    function _addCollateral( 
+        address user,
+        address indexToken, 
+        uint collateralDelta, 
+        bool long
+    ) internal {   
+        IVault(vault).validateLiquidatable(user, indexToken, long, false);  
+        validateDelta(0, collateralDelta);  
+
+        IERC20(stable).safeTransferFrom(user, vault, collateralDelta.precisionToStable());
+
+        IVault(vault).addCollateral(user, indexToken, collateralDelta, long);
     }
 
     function validateDelta(uint sizeDelta, uint collateralDelta) internal pure {

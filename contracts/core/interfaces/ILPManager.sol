@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-interface ILPManager {
+import "./IPermitData.sol";
+
+interface ILPManager is IPermitData {
 
     function vault() external view returns(address);
     function stable() external view returns(address);
@@ -25,6 +27,8 @@ interface ILPManager {
     function withdrawFees() external;
 
     function addLiquidity(uint underlyingAmount) external returns(uint lpAmount);
+
+    function addLiquidityWithPermit(uint underlyingAmount, PermitData calldata $) external returns(uint lpAmount);
 
     function removeLiquidity(uint sTokenAmount) external returns(uint underlyingAmount);
 

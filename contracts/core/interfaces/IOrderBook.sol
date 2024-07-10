@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-interface IOrderBook {
+import "./IPermitData.sol";
+
+interface IOrderBook is IPermitData {
 
     function minExecutionFee() external view returns(uint);
     function minOrderWorth() external view returns(uint);
@@ -37,6 +39,17 @@ interface IOrderBook {
         uint triggerPrice,
         bool triggerAboveThreshold,
         uint executionFee
+    ) external payable;
+
+    function createIncreaseOrderWithPermit(
+        address indexToken,
+        uint collateralDelta,
+        uint sizeDelta,
+        bool long,
+        uint triggerPrice,
+        bool triggerAboveThreshold,
+        uint executionFee,
+        PermitData calldata $
     ) external payable;
 
     function getIncreaseOrder(address user, uint256 orderIndex) external view returns(

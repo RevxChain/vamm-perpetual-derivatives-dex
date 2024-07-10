@@ -10,9 +10,11 @@ import "../libraries/Math.sol";
 
 import "./interfaces/IPositionsTracker.sol";
 import "./interfaces/IVault.sol";
+import "./interfaces/IPermitData.sol";
 
-contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
+contract LPManager is IPermitData, ERC20Burnable, Governable, ReentrancyGuard {
     using SafeERC20 for IERC20;
+    using SafeERC20 for IERC20Permit;
     using Math for uint;
 
     uint public constant MAX_BASE_REMOVE_FEE = 50;
@@ -82,21 +84,12 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
     }
 
     function addLiquidity(uint underlyingAmount) external nonReentrant() returns(uint lpAmount) {
-        validateAmount(underlyingAmount);
-        underlyingAmount = collectAddFees(underlyingAmount);
-        (uint _amount, address _user)= (underlyingAmount.stableToPrecision(), msg.sender);
- 
-        if(totalSupply() > 0){
-            lpAmount = _amount.mulDiv(totalSupply(), IVault(vault).poolAmount());
-        } else {
-            lpAmount = _amount.sqrt();
-            _mint(vault, Math.INIT_LOCK_AMOUNT);
-        }
-        
-        _mint(_user, lpAmount);
-        lastAdded[_user] = block.timestamp;
-        IERC20(stable).safeTransferFrom(_user, vault, underlyingAmount);
-        IVault(vault).increasePool(_amount);
+        lpAmount = _addLiquidity(underlyingAmount);
+    }
+
+    function addLiquidityWithPermit(uint underlyingAmount, PermitData calldata $) external nonReentrant() returns(uint lpAmount) {
+        IERC20Permit(stable).safePermit(msg.sender, address(this), underlyingAmount, $.deadline, $.v, $.r, $.s);  
+        lpAmount = _addLiquidity(underlyingAmount);
     }
 
     function removeLiquidity(uint sTokenAmount) external nonReentrant() returns(uint underlyingAmount) {
@@ -122,6 +115,24 @@ contract LPManager is ERC20Burnable, Governable, ReentrancyGuard {
 
     function decimals() public pure override returns(uint8) {
         return 9;
+    }
+
+    function _addLiquidity(uint underlyingAmount) internal returns(uint lpAmount) {
+        validateAmount(underlyingAmount);
+        underlyingAmount = collectAddFees(underlyingAmount);
+        (uint _amount, address _user)= (underlyingAmount.stableToPrecision(), msg.sender);
+ 
+        if(totalSupply() > 0){
+            lpAmount = _amount.mulDiv(totalSupply(), IVault(vault).poolAmount());
+        } else {
+            lpAmount = _amount.sqrt();
+            _mint(vault, Math.INIT_LOCK_AMOUNT);
+        }
+        
+        _mint(_user, lpAmount);
+        lastAdded[_user] = block.timestamp;
+        IERC20(stable).safeTransferFrom(_user, vault, underlyingAmount);
+        IVault(vault).increasePool(_amount);
     }
     
     function collectAddFees(uint amount) internal returns(uint afterFeeAmount) {
