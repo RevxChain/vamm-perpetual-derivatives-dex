@@ -3,7 +3,8 @@ pragma solidity 0.8.19;
 
 import "./FlashLoanModule.sol";
 
-import "../periphery/interfaces/ILiquidityManager.sol";
+import "../libraries/interfaces/ILiquidityManagerBase.sol";
+import "../libraries/interfaces/IImplementationSlot.sol";
 
 contract Vault is FlashLoanModule {
     using SafeERC20 for IERC20;
@@ -90,7 +91,7 @@ contract Vault is FlashLoanModule {
     }
 
     function setExtraUsageLiquidityEnabled(bool enableExtraUsageLiquidity) external onlyHandler(dao) {
-        validate(!ILiquidityManager(liquidityManager).active(), 45);
+        validate(!IImplementationSlot(liquidityManager).active(), 45);
         extraUsageLiquidityEnabled = enableExtraUsageLiquidity;
     }
 
@@ -559,19 +560,19 @@ contract Vault is FlashLoanModule {
 
     function useLiquidity() internal {
         if(!extraUsageLiquidityEnabled) return;
-        bool _active = ILiquidityManager(liquidityManager).active();
+        bool _active = IImplementationSlot(liquidityManager).active();
         uint _amount;
         if(_active){
-            (_active, _amount) = ILiquidityManager(liquidityManager).checkRemove(true);
+            (_active, _amount) = ILiquidityManagerBase(liquidityManager).checkRemove(true);
             if(_active){
-                (bool _success, uint _earnedAmount) = ILiquidityManager(liquidityManager).removeLiquidity(_amount);
+                (bool _success, uint _earnedAmount) = ILiquidityManagerBase(liquidityManager).removeLiquidity(_amount);
                 if(_success) poolAmount += _earnedAmount;
             } 
         } else {
-            (_active, _amount) = ILiquidityManager(liquidityManager).checkUsage(true);
+            (_active, _amount) = ILiquidityManagerBase(liquidityManager).checkUsage(true);
             if(_active){
                 IERC20(stable).safeTransfer(liquidityManager, _amount);
-                ILiquidityManager(liquidityManager).provideLiquidity(_amount);
+                ILiquidityManagerBase(liquidityManager).provideLiquidity(_amount);
             }
         }
     }
