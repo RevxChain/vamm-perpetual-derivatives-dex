@@ -56,7 +56,9 @@ contract FlashLoanModule is FundingModule, ReentrancyGuard {
         uint _balanceBefore = IERC20(stable).balanceOf(address(this));
         validate(_balanceBefore >= amount, 40);
 
-        fee = calculateFlashLoanFee(amount, tx.origin);
+        uint _fee = calculateFlashLoanFee(amount, tx.origin);
+        fee = calculateFlashLoanFee(amount, _debtor);
+        fee = fee > _fee ? _fee : fee;
 
         (uint _poolBefore, uint _borrowsBefore, uint _borrowPoolBefore) = (poolAmount, totalBorrows, borrowPool);
 
