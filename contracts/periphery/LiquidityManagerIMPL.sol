@@ -2,9 +2,10 @@
 pragma solidity 0.8.19;
 
 import "@aave/core-v3/contracts/interfaces/IPool.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@aave/periphery-v3/contracts/rewards/interfaces/IRewardsController.sol";
+
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
 import "./LiquidityManagerData.sol";
 import "../libraries/ImplementationSlot.sol";
@@ -20,7 +21,7 @@ contract LiquidityManagerIMPL is
     LiquidityManagerData, 
     ILiquidityManagerBase, 
     GovernableUpgradeable, 
-    ReentrancyGuard 
+    ReentrancyGuardUpgradeable 
 {
     using SafeERC20 for IERC20;   
     using Math for uint;
@@ -35,9 +36,11 @@ contract LiquidityManagerIMPL is
         address _poolTarget,
         address _rewardsController,
         address _extraReward
-    ) external {  
+    ) external initializer() {  
         require(!isInitialized(), "LiquidityManager: initialized");
         _setIsInitialized(true);
+
+        __ReentrancyGuard_init();
 
         _setGov(msg.sender); 
         _setDao(msg.sender);
