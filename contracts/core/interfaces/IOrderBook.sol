@@ -12,10 +12,24 @@ interface IOrderBook is IPermitData {
     function stable() external view returns(address);
     function executePrivateMode() external view returns(bool);
 
-    function increaseOrdersIndex(address user) external view returns(uint);
-    function decreaseOrdersIndex(address user) external view returns(uint);
+    function increaseOrdersIndex(address user) external view returns(uint index);
+    function increaseOrders(address user, uint index) external view returns(Order memory);
+    function decreaseOrdersIndex(address user) external view returns(uint index);
+    function decreaseOrders(address user, uint index) external view returns(Order memory);
+    
     function orderKeepers(address keeper) external view returns(bool);
     function whitelistedToken(address indexToken) external view returns(bool);
+
+    struct Order {
+        address user;
+        address indexToken;
+        uint collateralDelta;
+        uint sizeDelta;
+        bool long;
+        uint triggerPrice;
+        bool triggerAboveThreshold;
+        uint executionFee;
+    }
 
     function setMinExecutionFee(uint newMinExecutionFee) external;
 
@@ -52,16 +66,6 @@ interface IOrderBook is IPermitData {
         PermitData calldata $
     ) external payable;
 
-    function getIncreaseOrder(address user, uint256 orderIndex) external view returns(
-        address indexToken,
-        uint collateralDelta,
-        uint sizeDelta,
-        bool long,
-        uint triggerPrice,
-        bool triggerAboveThreshold,
-        uint executionFee
-    );
-
     function updateIncreaseOrder(
         uint orderIndex, 
         uint sizeDelta, 
@@ -82,16 +86,6 @@ interface IOrderBook is IPermitData {
         bool triggerAboveThreshold,
         uint executionFee
     ) external payable;
-
-    function getDecreaseOrder(address user, uint orderIndex) external view returns(
-        address indexToken,
-        uint collateralDelta,
-        uint sizeDelta,
-        bool long,
-        uint triggerPrice,
-        bool triggerAboveThreshold,
-        uint executionFee
-    );
 
     function updateDecreaseOrder(
         uint orderIndex,

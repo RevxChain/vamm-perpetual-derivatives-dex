@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.19;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -31,25 +30,14 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
     bool public executePrivateMode; 
 
     mapping(address => uint) public increaseOrdersIndex;
-    mapping(address => mapping(uint => IncreaseOrder)) public increaseOrders;
+    mapping(address => mapping(uint => Order)) public increaseOrders;
     mapping(address => uint) public decreaseOrdersIndex;
-    mapping(address => mapping(uint => DecreaseOrder)) public decreaseOrders;
+    mapping(address => mapping(uint => Order)) public decreaseOrders;
     
     mapping(address => bool) public orderKeepers;
     mapping(address => bool) public whitelistedToken;
 
-    struct IncreaseOrder {
-        address user;
-        address indexToken;
-        uint collateralDelta;
-        uint sizeDelta;
-        bool long;
-        uint triggerPrice;
-        bool triggerAboveThreshold;
-        uint executionFee;
-    }
-
-    struct DecreaseOrder {
+    struct Order {
         address user;
         address indexToken;
         uint collateralDelta;
@@ -116,8 +104,8 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
     }
 
     function cancelMultiple(uint[] memory increaseOrderIndexes, uint[] memory decreaseOrderIndexes) external {
-        for(uint i = 0; increaseOrderIndexes.length > i; i++) cancelIncreaseOrder(increaseOrderIndexes[i]);
-        for(uint i = 0; decreaseOrderIndexes.length > i; i++) cancelDecreaseOrder(decreaseOrderIndexes[i]);
+        for(uint i; increaseOrderIndexes.length > i; i++) cancelIncreaseOrder(increaseOrderIndexes[i]);
+        for(uint i; decreaseOrderIndexes.length > i; i++) cancelDecreaseOrder(decreaseOrderIndexes[i]);
     }
 
     function createIncreaseOrder(
@@ -167,69 +155,15 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
         );
     }
 
-    function _createIncreaseOrder(
-        address user,
-        address indexToken,
-        uint collateralDelta,
-        uint sizeDelta,
-        bool long,
-        uint triggerPrice,
-        bool triggerAboveThreshold,
-        uint executionFee
-    ) internal {
-        validateExecutionFee(executionFee);
-        validateDelta(sizeDelta, collateralDelta);
-        
-        (, uint _positionSize, , , ,) = IVault(vault).getPosition(user, indexToken, long);
-        if(_positionSize == 0) require(collateralDelta >= minOrderWorth, "OrderBook: insufficient collateral");
-
-        if(collateralDelta > 0) IERC20(stable).safeTransferFrom(user, address(this), collateralDelta.precisionToStable());
-
-        uint _orderIndex = increaseOrdersIndex[user];
-        IncreaseOrder memory order = IncreaseOrder(
-            user,
-            indexToken,
-            collateralDelta,
-            sizeDelta,
-            long,
-            triggerPrice,
-            triggerAboveThreshold,
-            executionFee
-        );
-        increaseOrdersIndex[user] = _orderIndex + 1;
-        increaseOrders[user][_orderIndex] = order;
-    }
-
-    function getIncreaseOrder(address user, uint orderIndex) public view returns(
-        address indexToken,
-        uint collateralDelta,
-        uint sizeDelta,
-        bool long,
-        uint triggerPrice,
-        bool triggerAboveThreshold,
-        uint executionFee
-    ) {
-        IncreaseOrder memory order = increaseOrders[user][orderIndex];
-        return (
-            order.indexToken,
-            order.collateralDelta,
-            order.sizeDelta,
-            order.long,
-            order.triggerPrice,
-            order.triggerAboveThreshold,
-            order.executionFee
-        );
-    }
-
     function updateIncreaseOrder(
         uint orderIndex, 
         uint sizeDelta, 
         uint triggerPrice, 
         bool triggerAboveThreshold
     ) external nonReentrant() {
-        IncreaseOrder storage order = increaseOrders[msg.sender][orderIndex];
-        validateOrderExist(order.user);
-        validateDelta(sizeDelta, order.collateralDelta);
+        Order storage order = increaseOrders[msg.sender][orderIndex];
+        _validateOrderExist(order.user);
+        _validateDelta(sizeDelta, order.collateralDelta);
 
         order.triggerPrice = triggerPrice;
         order.triggerAboveThreshold = triggerAboveThreshold;
@@ -241,12 +175,12 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
         uint orderIndex, 
         address payable feeReceiver
     ) external nonReentrant() onlyOrderKeeper() {
-        IncreaseOrder memory order = increaseOrders[user][orderIndex];
-        validateOrderExist(order.user);
+        Order memory order = increaseOrders[user][orderIndex];
+        _validateOrderExist(order.user);
         IVault(vault).validateLiquidatable(order.user, order.indexToken, order.long, false);
 
         // _markPrice for event
-        (uint _markPrice) = validatePositionOrderPrice(
+        (uint _markPrice) = _validatePositionOrderPrice(
             order.triggerAboveThreshold,
             order.triggerPrice,
             order.indexToken
@@ -255,7 +189,7 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
         delete increaseOrders[order.user][orderIndex];
 
         if(order.collateralDelta > 0) IERC20(stable).safeTransfer(vault, order.collateralDelta.precisionToStable());
-        safeTransfer(feeReceiver, order.executionFee);
+        _safeETHTransfer(feeReceiver, order.executionFee);
 
         IVAMM(VAMM).updateIndex(
             order.user, 
@@ -271,13 +205,13 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
 
     function cancelIncreaseOrder(uint orderIndex) public {
         address payable _user = payable(msg.sender);
-        IncreaseOrder memory order = increaseOrders[_user][orderIndex];
-        validateOrderExist(order.user);
+        Order memory order = increaseOrders[_user][orderIndex];
+        _validateOrderExist(order.user);
 
         delete increaseOrders[_user][orderIndex];
 
         IERC20(stable).safeTransfer(_user, order.collateralDelta.precisionToStable());
-        safeTransfer(_user, order.executionFee);
+        _safeETHTransfer(_user, order.executionFee);
     }
 
     function createDecreaseOrder(
@@ -289,65 +223,22 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
         bool triggerAboveThreshold,
         uint executionFee
     ) external payable nonReentrant() whitelisted(indexToken, true) {
-        validateExecutionFee(executionFee);
-        validateDelta(sizeDelta, collateralDelta);
+        _validateExecutionFee(executionFee);
+        _validateDelta(sizeDelta, collateralDelta);
+        address _user = msg.sender;
 
-        _createDecreaseOrder(
-            msg.sender,
-            indexToken,
-            collateralDelta,
-            sizeDelta,
-            long,
-            triggerPrice,
-            triggerAboveThreshold,
-            executionFee
-        );
-    }
+        decreaseOrders[_user][decreaseOrdersIndex[_user]] = Order({
+            user: _user,
+            indexToken: indexToken,
+            collateralDelta: collateralDelta,
+            sizeDelta: sizeDelta,
+            long: long,
+            triggerPrice: triggerPrice,
+            triggerAboveThreshold: triggerAboveThreshold,
+            executionFee: executionFee
+        });
 
-    function _createDecreaseOrder(
-        address user,
-        address indexToken,
-        uint collateralDelta,
-        uint sizeDelta,
-        bool long,
-        uint triggerPrice,
-        bool triggerAboveThreshold,
-        uint executionFee
-    ) internal {
-        uint _orderIndex = decreaseOrdersIndex[user];
-        DecreaseOrder memory order = DecreaseOrder(
-            user,
-            indexToken,
-            collateralDelta,
-            sizeDelta,
-            long,
-            triggerPrice,
-            triggerAboveThreshold,
-            executionFee
-        );
-        decreaseOrdersIndex[user] = _orderIndex + 1;
-        decreaseOrders[user][_orderIndex] = order;
-    }
-
-    function getDecreaseOrder(address user, uint orderIndex) public view returns(
-        address indexToken,
-        uint collateralDelta,
-        uint sizeDelta,
-        bool long,
-        uint triggerPrice,
-        bool triggerAboveThreshold,
-        uint executionFee
-    ) {
-        DecreaseOrder memory order = decreaseOrders[user][orderIndex];
-        return (
-            order.indexToken,
-            order.collateralDelta,
-            order.sizeDelta,
-            order.long,
-            order.triggerPrice,
-            order.triggerAboveThreshold,
-            order.executionFee
-        );
+        decreaseOrdersIndex[_user] += 1;
     }
 
     function updateDecreaseOrder(
@@ -357,9 +248,9 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
         uint triggerPrice,
         bool triggerAboveThreshold
     ) external nonReentrant() {
-        DecreaseOrder storage order = decreaseOrders[msg.sender][orderIndex];
-        validateOrderExist(order.user);
-        validateDelta(sizeDelta, collateralDelta);
+        Order storage order = decreaseOrders[msg.sender][orderIndex];
+        _validateOrderExist(order.user);
+        _validateDelta(sizeDelta, collateralDelta);
 
         order.collateralDelta = collateralDelta;
         order.sizeDelta = sizeDelta;
@@ -372,12 +263,12 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
         uint orderIndex, 
         address payable feeReceiver
     ) external nonReentrant() onlyOrderKeeper() {
-        DecreaseOrder memory order = decreaseOrders[user][orderIndex];
-        validateOrderExist(order.user);
+        Order memory order = decreaseOrders[user][orderIndex];
+        _validateOrderExist(order.user);
         IVault(vault).validateLiquidatable(order.user, order.indexToken, order.long, false);
 
         // _markPrice for event
-        (uint _markPrice) = validatePositionOrderPrice(
+        (uint _markPrice) = _validatePositionOrderPrice(
             order.triggerAboveThreshold,
             order.triggerPrice,
             order.indexToken
@@ -385,7 +276,7 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
 
         delete decreaseOrders[order.user][orderIndex];
 
-        safeTransfer(feeReceiver, order.executionFee);
+        _safeETHTransfer(feeReceiver, order.executionFee);
 
         IVAMM(VAMM).updateIndex(
             order.user, 
@@ -401,20 +292,52 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
 
     function cancelDecreaseOrder(uint orderIndex) public {
         address payable _user = payable(msg.sender);
-        DecreaseOrder memory order = decreaseOrders[_user][orderIndex];
-        validateOrderExist(order.user);
+        Order memory order = decreaseOrders[_user][orderIndex];
+        _validateOrderExist(order.user);
 
         delete decreaseOrders[_user][orderIndex];
 
-        safeTransfer(_user, order.executionFee);
+        _safeETHTransfer(_user, order.executionFee);
     }
 
-    function safeTransfer(address payable receiver, uint value) internal {
+    function _createIncreaseOrder(
+        address user,
+        address indexToken,
+        uint collateralDelta,
+        uint sizeDelta,
+        bool long,
+        uint triggerPrice,
+        bool triggerAboveThreshold,
+        uint executionFee
+    ) internal {
+        _validateExecutionFee(executionFee);
+        _validateDelta(sizeDelta, collateralDelta);
+        
+        (, uint _positionSize, , , ,) = IVault(vault).getPosition(user, indexToken, long);
+        if(_positionSize == 0) require(collateralDelta >= minOrderWorth, "OrderBook: insufficient collateral");
+
+        if(collateralDelta > 0) IERC20(stable).safeTransferFrom(user, address(this), collateralDelta.precisionToStable());
+
+        increaseOrders[user][increaseOrdersIndex[user]] = Order({
+            user: user,
+            indexToken: indexToken,
+            collateralDelta: collateralDelta,
+            sizeDelta: sizeDelta,
+            long: long,
+            triggerPrice: triggerPrice,
+            triggerAboveThreshold: triggerAboveThreshold,
+            executionFee: executionFee
+        });
+
+        increaseOrdersIndex[user] += 1;
+    }
+
+    function _safeETHTransfer(address payable receiver, uint value) internal {
         (bool _success, ) = receiver.call{value: value}(new bytes(0));
         require(_success, "OrderBook: ETH transfer failed");
     }
 
-    function validatePositionOrderPrice(
+    function _validatePositionOrderPrice(
         bool triggerAboveThreshold,
         uint triggerPrice,
         address indexToken
@@ -424,16 +347,16 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
         require(_isPriceValid, "OrderBook: invalid price for execution");
     }
 
-    function validateExecutionFee(uint executionFee) internal view {
+    function _validateExecutionFee(uint executionFee) internal view {
         require(executionFee >= minExecutionFee, "OrderBook: insufficient execution fee");
         require(msg.value == executionFee, "OrderBook: incorrect execution fee transferred");
     }
 
-    function validateOrderExist(address user) internal pure {
+    function _validateOrderExist(address user) internal pure {
         require(user != address(0), "OrderBook: non-existent order");
     }
 
-    function validateDelta(uint sizeDelta, uint collateralDelta) internal pure {
+    function _validateDelta(uint sizeDelta, uint collateralDelta) internal pure {
         require(sizeDelta > 0 || collateralDelta > 0, "OrderBook: invalid position amounts");
     } 
 }
