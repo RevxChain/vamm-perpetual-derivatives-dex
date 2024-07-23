@@ -9,6 +9,7 @@ import "./IOwnable2Step.sol";
 
 interface IMultiWallet is IOwnable2Step, IDebtor, IERC1155Receiver, IERC721Receiver {
 
+    function multiWalletMarketplace() external view returns(address);
     function whitelistEnabled() external view returns(bool);
     function paused() external view returns(bool);
 
@@ -137,11 +138,22 @@ interface IMultiWallet is IOwnable2Step, IDebtor, IERC1155Receiver, IERC721Recei
         bytes calldata data
     ) external;
 
+    function createSellOrder(
+        address paymentToken,
+        uint price,
+        address paymentReceiver,
+        uint deadline
+    ) external;
+
+    function cancelSellOrder() external;
+
     function getERC20Balance(address token) external view returns(uint);
 
     function getERC721Balance(address token) external view returns(uint);
 
     function getERC1155Balance(address token, uint tokenId) external view returns(uint);
+
+    function getSaleable() external view returns(bool result, address paymentToken, uint price);
 
     function getHashPacked(
         address user, 

@@ -10,6 +10,7 @@ interface IMultiWalletFactory {
     function orderBook() external view returns(address);
     function marketRouter() external view returns(address);
     function vault() external view returns(address); 
+    function multiWalletMarketplace() external view returns(address);
 
     function wallets(uint index) external view returns(address);
     function walletExist(address multiWallet) external view returns(bool);

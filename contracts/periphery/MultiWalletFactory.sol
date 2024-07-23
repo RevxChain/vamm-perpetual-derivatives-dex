@@ -14,6 +14,7 @@ contract MultiWalletFactory {
     address public immutable orderBook;
     address public immutable marketRouter;
     address public immutable vault;
+    address public immutable multiWalletMarketplace;
 
     mapping(uint => address) public wallets;
     mapping(address => bool) public walletExist;
@@ -23,16 +24,20 @@ contract MultiWalletFactory {
         address _lpManager,
         address _orderBook,
         address _marketRouter,
-        address _vault
+        address _vault,
+        address _multiWalletMarketplace
     ) {
         stable = _stable;
         lpManager = _lpManager;
         orderBook = _orderBook;
         marketRouter = _marketRouter;
         vault = _vault;
+        multiWalletMarketplace = _multiWalletMarketplace;
     }
 
     function createMultiWallet(address owner) external returns(address newMultiWallet) {
+        require(owner != address(0), "MultiWalletFactory: owner zero address");
+
         bytes memory _bytecode = abi.encodePacked(
             type(MultiWallet).creationCode, 
             abi.encode(
@@ -41,7 +46,8 @@ contract MultiWalletFactory {
                 lpManager, 
                 orderBook, 
                 marketRouter, 
-                vault
+                vault, 
+                multiWalletMarketplace
             )
         );
 

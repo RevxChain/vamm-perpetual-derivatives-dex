@@ -16,11 +16,15 @@ import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import "./Debtor.sol";
 
+import "./interfaces/IMultiWalletMarketplace.sol";
+
 contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2Step, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using ECDSA for bytes32;
 
     uint public constant SIGNATURE_LENGTH = 65;
+
+    address public immutable multiWalletMarketplace;
 
     bool public whitelistEnabled;
 
@@ -56,13 +60,16 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
         address lpManager,
         address orderBook,
         address marketRouter,
-        address vault
+        address vault,
+        address walletMarketplace
     ) Debtor(vault) {
         _transferOwnership(owner);
 
         IERC20(stable).forceApprove(lpManager, type(uint256).max);
         IERC20(stable).forceApprove(orderBook, type(uint256).max);
         IERC20(stable).forceApprove(marketRouter, type(uint256).max);
+
+        multiWalletMarketplace = walletMarketplace;
     }
 
     receive() external payable override {
@@ -341,6 +348,38 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
         super.withdraw(token, amount, receiver);
     }
 
+    function createSellOrder(
+        address paymentToken,
+        uint price,
+        address paymentReceiver,
+        uint deadline
+    ) external onlyOwner() {
+        super.transferOwnership(multiWalletMarketplace);
+
+        require(
+            IMultiWalletMarketplace(multiWalletMarketplace).createOrder(paymentToken, price, paymentReceiver, deadline), 
+            "MultiWallet: create order failed"
+        );
+    }
+
+    function cancelSellOrder() external onlyOwner() {
+        require(IMultiWalletMarketplace(multiWalletMarketplace).cancelOrder(), "MultiWallet: cancel order failed");
+
+        super.transferOwnership(address(0));
+    }
+
+    function transferOwnership(address newOwner) public override onlyOwner() {
+        _clearOrder();
+
+        super.transferOwnership(newOwner);
+    }
+
+    function acceptOwnership() public override {
+        super.acceptOwnership();
+
+        _clearOrder();
+    }
+
     function renounceOwnership() public override onlyOwner() {
         revert("MultiWallet: renounce forbidden"); 
     }
@@ -355,6 +394,12 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
 
     function getERC1155Balance(address token, uint tokenId) external view returns(uint) {
         return IERC1155(token).balanceOf(address(this), tokenId);
+    }
+
+    function getSaleable() external view returns(bool result, address paymentToken, uint price) {
+        price = IMultiWalletMarketplace(multiWalletMarketplace).orders(address(this)).price;
+        paymentToken = IMultiWalletMarketplace(multiWalletMarketplace).orders(address(this)).paymentToken;
+        return (price > 0, paymentToken, price);
     }
 
     function getHashPacked(
@@ -402,6 +447,15 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
 
     function _setPause(bool pauseEnable) internal {
         pauseEnable ? _pause() : _unpause();
+    }
+
+    function _clearOrder() internal {
+        if(
+            msg.sender != multiWalletMarketplace && 
+            IMultiWalletMarketplace(multiWalletMarketplace).orders(address(this)).price > 0
+        ) {
+            require(IMultiWalletMarketplace(multiWalletMarketplace).cancelOrder(), "MultiWallet: clear order failed");
+        }
     }
 
     function _ensure(uint deadline, bytes calldata signature) internal view {
