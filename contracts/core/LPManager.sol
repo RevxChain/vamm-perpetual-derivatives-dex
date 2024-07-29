@@ -50,7 +50,7 @@ contract LPManager is IPermitData, ERC20Burnable, Governable, ReentrancyGuard {
         vault = _vault;
         stable = _stable;
         positionsTracker = _positionsTracker;
-        controller = _controller;
+        _setController(_controller);
 
         baseRemoveFee = 20;
         baseProviderFee = 40;

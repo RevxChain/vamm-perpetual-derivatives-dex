@@ -63,14 +63,14 @@ contract OrderBook is IPermitData, Governable, ReentrancyGuard {
         address _VAMM,
         address _stable,
         address _controller
-    ) external onlyHandler(gov) validateAddress(_controller) {  
+    ) external onlyHandler(gov) {  
         require(!isInitialized, "OrderBook: initialized");
         isInitialized = true;
 
         vault = _vault;
         VAMM = _VAMM;
         stable = _stable;
-        controller = _controller;
+        _setController(_controller);
 
         minExecutionFee = 3e15;
         minOrderWorth = 10e18;

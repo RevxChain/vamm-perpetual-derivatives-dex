@@ -48,13 +48,13 @@ contract VAMM is Governable {
         address _marketRouter,
         address _orderBook,
         address _controller
-    ) external onlyHandler(gov) validateAddress(_controller) {  
+    ) external onlyHandler(gov) {  
         require(!isInitialized, "VAMM: initialized");
         isInitialized = true;
 
         vault = _vault;
         positionsTracker = _positionsTracker;
-        controller = _controller;
+        _setController(_controller);
         routers[_marketRouter] = true;
         routers[_orderBook] = true;
 

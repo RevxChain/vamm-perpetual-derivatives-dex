@@ -45,12 +45,12 @@ contract PriceFeed is Governable, ReentrancyGuard {
     function initialize(
         address _fastPriceFeed, 
         address _controller
-    ) external onlyHandler(gov) validateAddress(_controller) {  
+    ) external onlyHandler(gov) {  
         require(!isInitialized, "PriceFeed: initialized");
         isInitialized = true;
 
         fastPriceFeed = _fastPriceFeed;
-        controller = _controller;
+        _setController(_controller);
 
         isFastPriceEnabled = true;
         isAmmPriceEnabled = false;

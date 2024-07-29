@@ -56,13 +56,13 @@ contract PositionsTracker is Governable, ReentrancyGuard {
         address _vault,
         address _VAMM,
         address _controller
-    ) external onlyHandler(gov) validateAddress(_controller) {  
+    ) external onlyHandler(gov) {  
         require(!isInitialized, "PositionsTracker: initialized");
         isInitialized = true;
 
         vault = _vault;
         VAMM = _VAMM;
-        controller = _controller;
+        _setController(_controller);
 
         deltaDuration = 12 hours;
         liquidityDeviation = 1000;

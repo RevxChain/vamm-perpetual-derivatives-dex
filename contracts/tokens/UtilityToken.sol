@@ -38,11 +38,11 @@ contract UtilityToken is ERC721Enumerable, Governable, ReentrancyGuard {
     function initialize(
         address _controller, 
         string calldata baseURI_
-    ) external onlyHandler(gov) validateAddress(_controller) {   
+    ) external onlyHandler(gov) {   
         require(!isInitialized, "UtilityToken: initialized");
         isInitialized = true;
 
-        controller = _controller;
+        _setController(_controller);
         __baseURI = baseURI_;
     }
 

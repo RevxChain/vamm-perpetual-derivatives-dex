@@ -47,14 +47,14 @@ contract MarketRouter is IPermitData, Governable, ReentrancyGuard {
         address _stable,
         address _controller,
         address _utilityStorage
-    ) external onlyHandler(gov) validateAddress(_controller) {  
+    ) external onlyHandler(gov) {  
         require(!isInitialized, "MarketRouter: initialized");
         isInitialized = true;
 
         vault = _vault;
         VAMM = _VAMM;
         stable = _stable;
-        controller = _controller;
+        _setController(_controller);
         utilityStorage = _utilityStorage;
 
         liquidatePrivateMode = true;

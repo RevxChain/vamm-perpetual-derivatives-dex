@@ -83,11 +83,11 @@ contract FastPriceFeed is Governable {
     function initialize(
         address _controller,
         address _priceFeed
-    ) external onlyHandler(gov) validateAddress(_controller) {
+    ) external onlyHandler(gov) {
         require(!isInitialized, "FastPriceFeed: initialized");
         isInitialized = true;
 
-        controller = _controller;
+        _setController(_controller);
         priceFeed = _priceFeed;
 
         priceDuration = 10 minutes;

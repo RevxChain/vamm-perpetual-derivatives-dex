@@ -28,7 +28,7 @@ contract Vault is FlashLoanModule {
         address _controller,
         address _utilityStorage,
         address _liquidityManager
-    ) external onlyHandler(gov) validateAddress(_controller) {   
+    ) external onlyHandler(gov) {   
         validate(!isInitialized, 1);
         isInitialized = true;
 
@@ -38,7 +38,7 @@ contract Vault is FlashLoanModule {
         priceFeed = _priceFeed;
         positionsTracker = _positionsTracker;
         marketRouter = _marketRouter;
-        controller = _controller;
+        _setController(_controller);
         utilityStorage = _utilityStorage;
         liquidityManager = _liquidityManager;
 
