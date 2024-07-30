@@ -3,17 +3,6 @@ pragma solidity 0.8.19;
 
 interface IController {
 
-    function vault() external view returns(address);
-    function VAMM() external view returns(address);
-    function priceFeed() external view returns(address);
-    function fastPriceFeed() external view returns(address);
-    function LPManager() external view returns(address);
-    function orderBook() external view returns(address);
-    function marketRouter() external view returns(address);
-    function positionsTracker() external view returns(address);
-    function LPStaking() external view returns(address);
-    function govToken() external view returns(address);
-
     function setErrors(string[] calldata errors) external;
 
     function setTokenConfig(

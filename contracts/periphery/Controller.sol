@@ -4,6 +4,7 @@ pragma solidity 0.8.19;
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
+import "./AddressesRegistry.sol";
 import "../libraries/Governable.sol";
 
 import "../core/interfaces/IPositionsTracker.sol";
@@ -16,46 +17,44 @@ import "../core/interfaces/ILPManager.sol";
 import "../core/interfaces/IVault.sol";
 import "../core/interfaces/IVAMM.sol";
 
-contract Controller is Governable, ReentrancyGuard {
+contract Controller is AddressesRegistry, Governable, ReentrancyGuard {
 
-    address public vault;
-    address public VAMM;
-    address public priceFeed;
-    address public fastPriceFeed;
-    address public LPManager;
-    address public orderBook;
-    address public marketRouter;
-    address public positionsTracker;
-    address public LPStaking;
-    address public govToken;
-    
     bool public isInitialized;
 
     function initialize(
         address _vault,
-        address _VAMM,
-        address _priceFeed,
         address _fastPriceFeed,
-        address _LPManager,
         address _orderBook,
-        address _marketRouter,
-        address _positionsTracker,
         address _LPStaking,
-        address _govToken
+        address _govToken,
+        address _multiWalletFactory,
+        address _stakedSupplyToken,
+        address _utilityToken
     ) external onlyHandler(gov) {   
         require(!isInitialized, "Controller: initialized");
         isInitialized = true;
 
         vault = _vault;
-        VAMM = _VAMM;
-        priceFeed = _priceFeed;
+
+        VAMM = IVault(_vault).VAMM();
+        priceFeed = IVault(_vault).priceFeed();
+        LPManager = IVault(_vault).LPManager();
+        marketRouter = IVault(_vault).marketRouter();
+        positionsTracker = IVault(_vault).positionsTracker();
+        utilityStorage = IVault(_vault).utilityStorage();
+        stable = IVault(_vault).stable();
+        liquidityManagerProxy = IVault(_vault).liquidityManager();
+
         fastPriceFeed = _fastPriceFeed;
-        LPManager = _LPManager;
         orderBook = _orderBook;
-        marketRouter = _marketRouter;
-        positionsTracker = _positionsTracker;
         LPStaking = _LPStaking;
         govToken = _govToken;
+        multiWalletFactory = _multiWalletFactory;
+        stakedSupplyToken = _stakedSupplyToken;
+        utilityToken = _utilityToken;
+
+        (, bytes memory _response) = _multiWalletFactory.staticcall(abi.encodeWithSignature("multiWalletMarketplace()"));
+        multiWalletMarketplace = abi.decode(_response, (address));
     }
 
     function setErrors(string[] calldata errors) external onlyHandler(gov) {
@@ -146,4 +145,3 @@ contract Controller is Governable, ReentrancyGuard {
         ILPStaking(LPStaking).addRewards(_amount, extraRewardAmount);
     }
 }
-
