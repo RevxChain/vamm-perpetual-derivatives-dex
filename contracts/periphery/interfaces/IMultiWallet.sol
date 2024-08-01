@@ -23,6 +23,9 @@ interface IMultiWallet is IOwnable2Step, IDebtor, IERC1155Receiver, IERC721Recei
         uint ethValue;
         bytes data;
         uint deadline;
+        uint paymentAmount;
+        address paymentToken;
+        address paymentReceiver;
         bytes signature;
     }
 
@@ -36,6 +39,9 @@ interface IMultiWallet is IOwnable2Step, IDebtor, IERC1155Receiver, IERC721Recei
         bool raiseExecutor;
         bool pauseEnable;
         uint deadline;
+        uint paymentAmount;
+        address paymentToken;
+        address paymentReceiver;
         bytes signature;
     }
 

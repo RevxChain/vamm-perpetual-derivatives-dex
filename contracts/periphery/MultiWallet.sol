@@ -38,6 +38,9 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
         uint ethValue;
         bytes data;
         uint deadline;
+        uint paymentAmount;
+        address paymentToken;
+        address paymentReceiver;
         bytes signature;
     }
 
@@ -51,6 +54,9 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
         bool raiseExecutor;
         bool pauseEnable;
         uint deadline;
+        uint paymentAmount;
+        address paymentToken;
+        address paymentReceiver;
         bytes signature;
     }
 
@@ -112,7 +118,9 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
         nonces[$.target] += 1;
         signatureUsed[$.signature] = true;
 
-        (success, response) = $.target.call{value: $.ethValue}($.data); 
+        (success, response) = $.target.call{value: $.ethValue}($.data);
+
+        _executePayment($.paymentAmount, $.paymentToken, payable($.paymentReceiver));
     }
 
     function executeInternalCall(CallDataInternal calldata $$) external nonReentrant() {
@@ -133,7 +141,10 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
                 $$.pauseEnable
             ))),
             deadline: $$.deadline, 
-            signature: $$.signature
+            signature: $$.signature,
+            paymentAmount: $$.paymentAmount,
+            paymentToken: $$.paymentToken,
+            paymentReceiver: $$.paymentReceiver
         });
 
         // _cachedNonce for event 
@@ -150,6 +161,8 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
         if($$.enableWhitelist != whitelistEnabled) _enableWhitelist($$.enableWhitelist);
         if($$.executorToRaise != address(0)) _setWhitelist($$.executorToRaise, $$.raiseExecutor);
         if($$.pauseEnable != paused()) _setPause($$.pauseEnable);
+
+        _executePayment($$.paymentAmount, $$.paymentToken, payable($$.paymentReceiver)); 
     }
 
     function externalCall(
@@ -181,7 +194,9 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
         nonces[$.target] += 1;
         signatureUsed[$.signature] = true;
 
-        super.loan($.ethValue, $.data);   
+        super.loan($.ethValue, $.data);
+
+        _executePayment($.paymentAmount, $.paymentToken, payable($.paymentReceiver));  
     }
 
     function executeFlashLoan(uint amount, uint fee, bytes calldata data) public override {
@@ -404,7 +419,9 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
                 $.target, 
                 $.ethValue, 
                 $.data, 
-                $.deadline
+                $.deadline,
+                $.paymentAmount,
+                $.paymentToken
             )
         );
     }
@@ -440,6 +457,13 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
         ) {
             require(IMultiWalletMarketplace(multiWalletMarketplace).cancelOrder(), "MultiWallet: clear order failed");
         }
+    }
+
+    function _executePayment(uint paymentAmount, address paymentToken, address payable paymentReceiver) internal {
+        if(paymentAmount > 0){
+            if(paymentToken == address(0)) _ethBalanceCheck(paymentAmount);
+            super.withdraw(paymentToken, paymentAmount, paymentReceiver);
+        } 
     }
 
     function _ensure(uint deadline, bytes calldata signature) internal view {
