@@ -155,9 +155,10 @@ interface IMultiWallet is IOwnable2Step, IDebtor, IERC1155Receiver, IERC721Recei
 
     function getSaleable() external view returns(bool result, address paymentToken, uint price);
 
+    function getSignedHash(CallData memory $) external view returns(bytes32);
+
     function getHashPacked(
         address user, 
-        address executor,
         address verifier,
         uint nonce,  
         uint chainId, 

@@ -102,20 +102,12 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
     
     function executeCall(CallData calldata $) external nonReentrant() returns(bool success, bytes memory response) {   
         _ensure($.deadline, $.signature);
-        _pendingOwnerForbidden();
         _ethBalanceCheck($.ethValue);
 
-        uint _cachedNonce = nonces[$.target];
-        bytes32 _hashedParams = getHashPacked(
-            owner(), 
-            msg.sender, 
-            address(this), 
-            _cachedNonce, 
-            block.chainid, 
-            $
-        ).toEthSignedMessageHash();
+        // _cachedNonce for event 
+        // uint _cachedNonce = nonces[$.target];
 
-        require(_hashedParams.recover($.signature) == owner(), "MultiWallet: invalid singer");
+        require(getSignedHash($).recover($.signature) == owner(), "MultiWallet: invalid singer");
 
         nonces[$.target] += 1;
         signatureUsed[$.signature] = true;
@@ -125,7 +117,6 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
 
     function executeInternalCall(CallDataInternal calldata $$) external nonReentrant() {
         _ensure($$.deadline, $$.signature);
-        _pendingOwnerForbidden();
 
         CallData memory $ = CallData({
             target: payable(address(this)),
@@ -145,17 +136,10 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
             signature: $$.signature
         });
 
-        uint _cachedNonce = nonces[address(this)];
-        bytes32 _hashedParams = getHashPacked(
-            owner(), 
-            msg.sender, 
-            address(this), 
-            _cachedNonce, 
-            block.chainid, 
-            $
-        ).toEthSignedMessageHash();
+        // _cachedNonce for event 
+        // uint _cachedNonce = nonces[$.target];
 
-        require(_hashedParams.recover($$.signature) == owner(), "MultiWallet: invalid singer");
+        require(getSignedHash($).recover($$.signature) == owner(), "MultiWallet: invalid singer");
 
         nonces[address(this)] += 1;
         signatureUsed[$$.signature] = true;
@@ -187,20 +171,12 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
 
     function executeLoan(CallData calldata $) external payable nonReentrant() {   
         _ensure($.deadline, $.signature);
-        _pendingOwnerForbidden();
         require($.target == vault, "MultiWallet: invalid target");
 
-        uint _cachedNonce = nonces[$.target];
-        bytes32 _hashedParams = getHashPacked(
-            owner(), 
-            msg.sender, 
-            address(this), 
-            _cachedNonce, 
-            block.chainid, 
-            $
-        ).toEthSignedMessageHash();
+        // _cachedNonce for event 
+        // uint _cachedNonce = nonces[$.target];
 
-        require(_hashedParams.recover($.signature) == owner(), "MultiWallet: invalid singer");
+        require(getSignedHash($).recover($.signature) == owner(), "MultiWallet: invalid singer");
 
         nonces[$.target] += 1;
         signatureUsed[$.signature] = true;
@@ -402,9 +378,18 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
         return (price > 0, paymentToken, price);
     }
 
+    function getSignedHash(CallData memory $) public view returns(bytes32) {
+        return getHashPacked(
+            owner(),  
+            address(this), 
+            nonces[$.target], 
+            block.chainid, 
+            $
+        ).toEthSignedMessageHash();
+    }
+
     function getHashPacked(
         address user, 
-        address executor,
         address verifier,
         uint nonce,  
         uint chainId, 
@@ -412,8 +397,7 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
     ) public pure returns(bytes32) {
         return keccak256(
             abi.encodePacked(
-                user, 
-                executor, 
+                user,  
                 verifier, 
                 nonce, 
                 chainId,
@@ -460,6 +444,7 @@ contract MultiWallet is Debtor, Pausable, ERC1155Holder, ERC721Holder, Ownable2S
 
     function _ensure(uint deadline, bytes calldata signature) internal view {
         _requireNotPaused();
+        _pendingOwnerForbidden();
         require(deadline >= block.timestamp, "MultiWallet: expired");
         require(signature.length == SIGNATURE_LENGTH, "MultiWallet: invalid signature length");
         require(!signatureUsed[signature], "MultiWallet: signature used");
